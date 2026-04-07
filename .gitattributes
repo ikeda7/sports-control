@@ -1,0 +1,8 @@
+# Normaliza line endings para LF no repositório (padrão cross-platform)
+* text=auto eol=lf
+
+# Binários — nunca converter
+*.png binary
+*.jpg binary
+*.ico binary
+*.jar binary
