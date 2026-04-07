@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/Lucas/Desktop/**)",
+      "Bash(flutter create:*)",
+      "Bash(flutter --version)",
+      "Bash(dart --version)",
+      "Bash(dart pub:*)",
+      "Bash(dart run:*)",
+      "Bash(flutter pub:*)",
+      "Bash(grep -n \"get jogador\\\\|JogadorRow\\\\|JogadoresTableCompanion\\\\|tableName\\\\|class _\\\\$\" c:/Users/Lucas/Desktop/volleycontrol/lib/database/app_database.g.dart)",
+      "Bash(grep -n 'get jogadoresTable\\\\|AppDatabase extends\\\\|class _$AppDatabase' c:/Users/Lucas/Desktop/volleycontrol/lib/database/app_database.g.dart)",
+      "Bash(grep -n '$jogadoresTable\\\\|allTables\\\\|managers\\\\|get jogadoresTable' c:/Users/Lucas/Desktop/volleycontrol/lib/database/app_database.g.dart)",
+      "Bash(grep -n 'class $AppDatabaseManager\\\\|get jogadoresTable\\\\|__TRACKED_VAR__JogadoresTable' c:/Users/Lucas/Desktop/volleycontrol/lib/database/app_database.g.dart)",
+      "Bash(grep -n '$name\\\\b' c:/Users/Lucas/Desktop/volleycontrol/lib/database/app_database.g.dart)",
+      "Bash(flutter run:*)",
+      "Bash(start ms-settings:developers)",
+      "Bash(flutter analyze:*)"
+    ]
+  }
+}

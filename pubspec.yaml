@@ -1,0 +1,39 @@
+name: sports_control
+description: "Gerenciador de rachões esportivos — SportsControl"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # ORM reativo para SQLite — substituto maduro do Isar (Isar 3.x abandonado para Dart 3.x)
+  # Analogia: TypeORM / JPA com suporte nativo a streams reativos
+  drift: ^2.32.1
+
+  # Bundla o SQLite nativo para Windows, Android, iOS, etc.
+  sqlite3_flutter_libs: ^0.6.0
+
+  # Signals reativos — idêntico aos Signals do Angular 17+
+  signals_flutter: ^6.3.0
+
+  # Para encontrar o diretório correto de cada plataforma
+  path_provider: ^2.1.5
+  path: ^1.9.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+  # Gera o código boilerplate do Drift (app_database.g.dart)
+  drift_dev: ^2.32.1
+  build_runner: ^2.4.13
+
+flutter:
+  uses-material-design: true
