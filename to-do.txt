@@ -1,0 +1,18 @@
+levantador fixo nos times, se tiver só 2 levantadores, eles jogam todos os jogos por exemplo, se for mais, rotaciona com base nos jogos jogados
+
+regras do jogo, pelo menos uma mulher e um levantador em cada time, equilibrar quem ataca bem, sempre distribuir de acordo com a quantidade de times
+sugestão de substituição com base nos atributos e nos jogos jogados
+
+na aba sorteio, liberar substituição caso algum jogador não esteja presente ou empréstimo de jogador
+
+armazenar os times sempre, eles vão ter a mesma base porém alguns jogadores podem mudar
+
+placar armazenar apenas os jogos do dia ou organizar por data e hora
+
+os times que forem jogar nos jogos devem ser decididos com base no histórico: ganhou 2 sai, se no segundo jogo de um time eles ganharem novamente, os 2 times saem de quadra
+pessoa que tiver jogado menos tem prioridade pra jogar o próximo
+sempre adequar o time com quem está de fora, a base do time mantém mas inevitavelmente os jogadores serão trocados
+
+poder colocar um txt para importar pelo menos os nomes do jogadores
+
+atributos provavelmente vai mudar. 
