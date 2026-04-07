@@ -15,7 +15,8 @@
       "Bash(grep -n '$name\\\\b' c:/Users/Lucas/Desktop/volleycontrol/lib/database/app_database.g.dart)",
       "Bash(flutter run:*)",
       "Bash(start ms-settings:developers)",
-      "Bash(flutter analyze:*)"
+      "Bash(flutter analyze:*)",
+      "mcp__plugin_context-mode_context-mode__ctx_doctor"
     ]
   }
 }
