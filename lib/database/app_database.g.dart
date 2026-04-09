@@ -1848,8 +1848,27 @@ class $TimesTableTable extends TimesTable
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _vitoriasMeta = const VerificationMeta(
+    'vitorias',
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, sessaoId, nome, jogadorIds, ordem];
+  late final GeneratedColumn<int> vitorias = GeneratedColumn<int>(
+    'vitorias',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    sessaoId,
+    nome,
+    jogadorIds,
+    ordem,
+    vitorias,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1897,6 +1916,12 @@ class $TimesTableTable extends TimesTable
     } else if (isInserting) {
       context.missing(_ordemMeta);
     }
+    if (data.containsKey('vitorias')) {
+      context.handle(
+        _vitoriasMeta,
+        vitorias.isAcceptableOrUnknown(data['vitorias']!, _vitoriasMeta),
+      );
+    }
     return context;
   }
 
@@ -1926,6 +1951,10 @@ class $TimesTableTable extends TimesTable
         DriftSqlType.int,
         data['${effectivePrefix}ordem'],
       )!,
+      vitorias: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}vitorias'],
+      )!,
     );
   }
 
@@ -1941,12 +1970,14 @@ class TimeRow extends DataClass implements Insertable<TimeRow> {
   final String nome;
   final String jogadorIds;
   final int ordem;
+  final int vitorias;
   const TimeRow({
     required this.id,
     required this.sessaoId,
     required this.nome,
     required this.jogadorIds,
     required this.ordem,
+    required this.vitorias,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1956,6 +1987,7 @@ class TimeRow extends DataClass implements Insertable<TimeRow> {
     map['nome'] = Variable<String>(nome);
     map['jogador_ids'] = Variable<String>(jogadorIds);
     map['ordem'] = Variable<int>(ordem);
+    map['vitorias'] = Variable<int>(vitorias);
     return map;
   }
 
@@ -1966,6 +1998,7 @@ class TimeRow extends DataClass implements Insertable<TimeRow> {
       nome: Value(nome),
       jogadorIds: Value(jogadorIds),
       ordem: Value(ordem),
+      vitorias: Value(vitorias),
     );
   }
 
@@ -1980,6 +2013,7 @@ class TimeRow extends DataClass implements Insertable<TimeRow> {
       nome: serializer.fromJson<String>(json['nome']),
       jogadorIds: serializer.fromJson<String>(json['jogadorIds']),
       ordem: serializer.fromJson<int>(json['ordem']),
+      vitorias: serializer.fromJson<int>(json['vitorias']),
     );
   }
   @override
@@ -1991,6 +2025,7 @@ class TimeRow extends DataClass implements Insertable<TimeRow> {
       'nome': serializer.toJson<String>(nome),
       'jogadorIds': serializer.toJson<String>(jogadorIds),
       'ordem': serializer.toJson<int>(ordem),
+      'vitorias': serializer.toJson<int>(vitorias),
     };
   }
 
@@ -2000,12 +2035,14 @@ class TimeRow extends DataClass implements Insertable<TimeRow> {
     String? nome,
     String? jogadorIds,
     int? ordem,
+    int? vitorias,
   }) => TimeRow(
     id: id ?? this.id,
     sessaoId: sessaoId ?? this.sessaoId,
     nome: nome ?? this.nome,
     jogadorIds: jogadorIds ?? this.jogadorIds,
     ordem: ordem ?? this.ordem,
+    vitorias: vitorias ?? this.vitorias,
   );
   TimeRow copyWithCompanion(TimesTableCompanion data) {
     return TimeRow(
@@ -2016,6 +2053,7 @@ class TimeRow extends DataClass implements Insertable<TimeRow> {
           ? data.jogadorIds.value
           : this.jogadorIds,
       ordem: data.ordem.present ? data.ordem.value : this.ordem,
+      vitorias: data.vitorias.present ? data.vitorias.value : this.vitorias,
     );
   }
 
@@ -2026,13 +2064,15 @@ class TimeRow extends DataClass implements Insertable<TimeRow> {
           ..write('sessaoId: $sessaoId, ')
           ..write('nome: $nome, ')
           ..write('jogadorIds: $jogadorIds, ')
-          ..write('ordem: $ordem')
+          ..write('ordem: $ordem, ')
+          ..write('vitorias: $vitorias')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, sessaoId, nome, jogadorIds, ordem);
+  int get hashCode =>
+      Object.hash(id, sessaoId, nome, jogadorIds, ordem, vitorias);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2041,7 +2081,8 @@ class TimeRow extends DataClass implements Insertable<TimeRow> {
           other.sessaoId == this.sessaoId &&
           other.nome == this.nome &&
           other.jogadorIds == this.jogadorIds &&
-          other.ordem == this.ordem);
+          other.ordem == this.ordem &&
+          other.vitorias == this.vitorias);
 }
 
 class TimesTableCompanion extends UpdateCompanion<TimeRow> {
@@ -2050,12 +2091,14 @@ class TimesTableCompanion extends UpdateCompanion<TimeRow> {
   final Value<String> nome;
   final Value<String> jogadorIds;
   final Value<int> ordem;
+  final Value<int> vitorias;
   const TimesTableCompanion({
     this.id = const Value.absent(),
     this.sessaoId = const Value.absent(),
     this.nome = const Value.absent(),
     this.jogadorIds = const Value.absent(),
     this.ordem = const Value.absent(),
+    this.vitorias = const Value.absent(),
   });
   TimesTableCompanion.insert({
     this.id = const Value.absent(),
@@ -2063,6 +2106,7 @@ class TimesTableCompanion extends UpdateCompanion<TimeRow> {
     required String nome,
     required String jogadorIds,
     required int ordem,
+    this.vitorias = const Value.absent(),
   }) : sessaoId = Value(sessaoId),
        nome = Value(nome),
        jogadorIds = Value(jogadorIds),
@@ -2073,6 +2117,7 @@ class TimesTableCompanion extends UpdateCompanion<TimeRow> {
     Expression<String>? nome,
     Expression<String>? jogadorIds,
     Expression<int>? ordem,
+    Expression<int>? vitorias,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2080,6 +2125,7 @@ class TimesTableCompanion extends UpdateCompanion<TimeRow> {
       if (nome != null) 'nome': nome,
       if (jogadorIds != null) 'jogador_ids': jogadorIds,
       if (ordem != null) 'ordem': ordem,
+      if (vitorias != null) 'vitorias': vitorias,
     });
   }
 
@@ -2089,6 +2135,7 @@ class TimesTableCompanion extends UpdateCompanion<TimeRow> {
     Value<String>? nome,
     Value<String>? jogadorIds,
     Value<int>? ordem,
+    Value<int>? vitorias,
   }) {
     return TimesTableCompanion(
       id: id ?? this.id,
@@ -2096,6 +2143,7 @@ class TimesTableCompanion extends UpdateCompanion<TimeRow> {
       nome: nome ?? this.nome,
       jogadorIds: jogadorIds ?? this.jogadorIds,
       ordem: ordem ?? this.ordem,
+      vitorias: vitorias ?? this.vitorias,
     );
   }
 
@@ -2117,6 +2165,9 @@ class TimesTableCompanion extends UpdateCompanion<TimeRow> {
     if (ordem.present) {
       map['ordem'] = Variable<int>(ordem.value);
     }
+    if (vitorias.present) {
+      map['vitorias'] = Variable<int>(vitorias.value);
+    }
     return map;
   }
 
@@ -2127,7 +2178,8 @@ class TimesTableCompanion extends UpdateCompanion<TimeRow> {
           ..write('sessaoId: $sessaoId, ')
           ..write('nome: $nome, ')
           ..write('jogadorIds: $jogadorIds, ')
-          ..write('ordem: $ordem')
+          ..write('ordem: $ordem, ')
+          ..write('vitorias: $vitorias')
           ..write(')'))
         .toString();
   }
@@ -3098,6 +3150,7 @@ typedef $$TimesTableTableCreateCompanionBuilder =
       required String nome,
       required String jogadorIds,
       required int ordem,
+      Value<int> vitorias,
     });
 typedef $$TimesTableTableUpdateCompanionBuilder =
     TimesTableCompanion Function({
@@ -3106,6 +3159,7 @@ typedef $$TimesTableTableUpdateCompanionBuilder =
       Value<String> nome,
       Value<String> jogadorIds,
       Value<int> ordem,
+      Value<int> vitorias,
     });
 
 class $$TimesTableTableFilterComposer
@@ -3139,6 +3193,11 @@ class $$TimesTableTableFilterComposer
 
   ColumnFilters<int> get ordem => $composableBuilder(
     column: $table.ordem,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get vitorias => $composableBuilder(
+    column: $table.vitorias,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -3176,6 +3235,11 @@ class $$TimesTableTableOrderingComposer
     column: $table.ordem,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get vitorias => $composableBuilder(
+    column: $table.vitorias,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$TimesTableTableAnnotationComposer
@@ -3203,6 +3267,9 @@ class $$TimesTableTableAnnotationComposer
 
   GeneratedColumn<int> get ordem =>
       $composableBuilder(column: $table.ordem, builder: (column) => column);
+
+  GeneratedColumn<int> get vitorias =>
+      $composableBuilder(column: $table.vitorias, builder: (column) => column);
 }
 
 class $$TimesTableTableTableManager
@@ -3238,12 +3305,14 @@ class $$TimesTableTableTableManager
                 Value<String> nome = const Value.absent(),
                 Value<String> jogadorIds = const Value.absent(),
                 Value<int> ordem = const Value.absent(),
+                Value<int> vitorias = const Value.absent(),
               }) => TimesTableCompanion(
                 id: id,
                 sessaoId: sessaoId,
                 nome: nome,
                 jogadorIds: jogadorIds,
                 ordem: ordem,
+                vitorias: vitorias,
               ),
           createCompanionCallback:
               ({
@@ -3252,12 +3321,14 @@ class $$TimesTableTableTableManager
                 required String nome,
                 required String jogadorIds,
                 required int ordem,
+                Value<int> vitorias = const Value.absent(),
               }) => TimesTableCompanion.insert(
                 id: id,
                 sessaoId: sessaoId,
                 nome: nome,
                 jogadorIds: jogadorIds,
                 ordem: ordem,
+                vitorias: vitorias,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

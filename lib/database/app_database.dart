@@ -106,6 +106,8 @@ class TimesTable extends Table {
   // IDs dos jogadores separados por vírgula
   TextColumn get jogadorIds => text()();
   IntColumn get ordem => integer()(); // índice base 0
+  // Vitórias consecutivas na quadra. Reseta quando o time sai.
+  IntColumn get vitorias => integer().withDefault(const Constant(0))();
 }
 
 // =============================================================================
@@ -118,7 +120,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -157,6 +159,12 @@ class AppDatabase extends _$AppDatabase {
             );
             await customStatement(
               "ALTER TABLE partidas ADD COLUMN time_b_nome TEXT NOT NULL DEFAULT 'Time B'",
+            );
+          }
+          if (from < 6) {
+            // v5→v6: coluna de vitórias consecutivas por time
+            await customStatement(
+              'ALTER TABLE times ADD COLUMN vitorias INTEGER NOT NULL DEFAULT 0',
             );
           }
         },
@@ -474,7 +482,10 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
-  /// Encerra a partida e incrementa [partidasJogadas] de todos os participantes.
+  /// Encerra a partida, incrementa [partidasJogadas] de todos os participantes
+  /// e aplica a lógica de rotação "ganhou 2 sai":
+  /// - Vencedor ganha +1 vitória; perdedor reseta para 0.
+  /// - Se o vencedor chegar a 2 vitórias, ambos os times saem (reset para 0).
   Future<void> encerrarPartida(int partidaId) async {
     await transaction(() async {
       final row = await (select(partidasTable)
@@ -496,6 +507,48 @@ class AppDatabase extends _$AppDatabase {
           variables: [Variable.withInt(jid)],
           updates: {jogadoresTable},
         );
+      }
+
+      // Rotação: empate não altera vitórias
+      if (row.placarA == row.placarB) return;
+
+      final nomeVencedor =
+          row.placarA > row.placarB ? row.timeANome : row.timeBNome;
+      final nomePerdedor =
+          row.placarA > row.placarB ? row.timeBNome : row.timeANome;
+
+      final timeVencedor = await (select(timesTable)
+            ..where((t) =>
+                t.sessaoId.equals(row.sessaoId) &
+                t.nome.equals(nomeVencedor)))
+          .getSingleOrNull();
+      final timePerdedor = await (select(timesTable)
+            ..where((t) =>
+                t.sessaoId.equals(row.sessaoId) &
+                t.nome.equals(nomePerdedor)))
+          .getSingleOrNull();
+
+      if (timeVencedor == null) return;
+
+      final novasVitorias = timeVencedor.vitorias + 1;
+
+      if (novasVitorias >= 2) {
+        // Vencedor ganhou 2 seguidas: ambos saem da quadra → reset tudo
+        await customUpdate(
+          'UPDATE times SET vitorias = 0 WHERE sessao_id = ?',
+          variables: [Variable.withInt(row.sessaoId)],
+          updates: {timesTable},
+        );
+      } else {
+        // Vencedor fica com 1 vitória; perdedor sai (reset 0)
+        await (update(timesTable)
+              ..where((t) => t.id.equals(timeVencedor.id)))
+            .write(TimesTableCompanion(vitorias: Value(novasVitorias)));
+        if (timePerdedor != null) {
+          await (update(timesTable)
+                ..where((t) => t.id.equals(timePerdedor.id)))
+              .write(const TimesTableCompanion(vitorias: Value(0)));
+        }
       }
     });
   }
@@ -544,6 +597,7 @@ class AppDatabase extends _$AppDatabase {
         nome: row.nome,
         jogadorIds: _deserializeIds(row.jogadorIds),
         ordem: row.ordem,
+        vitorias: row.vitorias,
       );
 
   String _serializeIds(List<int> ids) => ids.join(',');

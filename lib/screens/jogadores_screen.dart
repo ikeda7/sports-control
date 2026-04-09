@@ -86,9 +86,23 @@ class JogadoresScreen extends StatelessWidget {
                 await _confirmarSeed(context);
               } else if (v == 'limpar') {
                 await _confirmarLimparTodos(context);
+              } else if (v == 'importar') {
+                _mostrarDialogImportar(context);
               }
             },
             itemBuilder: (_) => [
+              const PopupMenuItem(
+                value: 'importar',
+                child: Row(
+                  children: [
+                    Icon(Icons.upload_file_outlined,
+                        color: Colors.white70, size: 18),
+                    SizedBox(width: 10),
+                    Text('Importar lista de nomes',
+                        style: TextStyle(color: Colors.white70)),
+                  ],
+                ),
+              ),
               const PopupMenuItem(
                 value: 'seed',
                 child: Row(
@@ -587,6 +601,182 @@ class JogadoresScreen extends StatelessWidget {
       ),
     );
     if (ok == true) await seedJogadores();
+  }
+
+  // ── IMPORTAR LISTA DE NOMES ─────────────────────────────────────────────────
+
+  /// Analisa texto colado (lista do WhatsApp, numerada, ou um nome por linha)
+  /// e extrai nomes legíveis.
+  static List<String> _parsearNomes(String texto) {
+    final resultado = <String>[];
+    for (var linha in texto.split('\n')) {
+      // Formato WhatsApp: "+55 11 99999-9999 ~ Nome Completo"
+      if (linha.contains('~')) {
+        linha = linha.substring(linha.indexOf('~') + 1);
+      }
+      // Remove número de telefone no início
+      linha = linha.replaceAll(
+          RegExp(r'^\s*[\+\d][\d\s\-\(\)\.]{5,}\s*'), '');
+      // Remove numeração "1." "1)" "1 -" etc.
+      linha = linha.replaceAll(RegExp(r'^\s*\d+\s*[\.\):\-]\s*'), '');
+      // Mantém letras, espaços, acentos e hífens; remove o resto
+      linha = linha
+          .replaceAll(RegExp(r"[^a-zA-ZÀ-ÿ\s'\-]"), '')
+          .trim()
+          .replaceAll(RegExp(r'\s+'), ' ');
+      if (linha.length >= 2) resultado.add(linha);
+    }
+    return resultado;
+  }
+
+  void _mostrarDialogImportar(BuildContext context) {
+    final ctrl = TextEditingController();
+    var nomes = <String>[];
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          backgroundColor: const Color(0xFF0D1F3C),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+          ),
+          title: const Text('Importar lista de nomes',
+              style: TextStyle(color: Colors.white)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Cole a lista abaixo (WhatsApp, numerada ou um nome por linha):',
+                  style: TextStyle(color: Colors.white54, fontSize: 13),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: ctrl,
+                  maxLines: 8,
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText:
+                        '+55 11 99999-9999 ~ João Silva\n1. Maria Santos\nPedro Costa...',
+                    hintStyle: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        fontSize: 12),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.2)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide:
+                          const BorderSide(color: Color(0xFFFF6B35)),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white.withValues(alpha: 0.04),
+                  ),
+                  onChanged: (v) =>
+                      setState(() => nomes = _parsearNomes(v)),
+                ),
+                if (nomes.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  Text(
+                    '${nomes.length} nome${nomes.length != 1 ? 's' : ''} encontrado${nomes.length != 1 ? 's' : ''}:',
+                    style: const TextStyle(
+                        color: Color(0xFF4CAF50),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: nomes
+                        .map((n) => Chip(
+                              label: Text(n,
+                                  style:
+                                      const TextStyle(fontSize: 11)),
+                              backgroundColor: Colors.white
+                                  .withValues(alpha: 0.06),
+                              side: BorderSide(
+                                  color: Colors.white
+                                      .withValues(alpha: 0.15)),
+                              labelStyle: const TextStyle(
+                                  color: Colors.white70),
+                              padding: EdgeInsets.zero,
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                            ))
+                        .toList(),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Atributos padrão (3/5). Edite individualmente depois.',
+                    style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.3),
+                        fontSize: 11),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancelar',
+                  style: TextStyle(color: Colors.white38)),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                  backgroundColor: nomes.isNotEmpty
+                      ? const Color(0xFFFF6B35)
+                      : Colors.white.withValues(alpha: 0.1)),
+              onPressed: nomes.isEmpty
+                  ? null
+                  : () async {
+                      final existentes = (jogadoresSignal.value.value ?? [])
+                          .map((j) => j.nome.toLowerCase())
+                          .toSet();
+                      var importados = 0;
+                      for (final nome in nomes) {
+                        if (existentes.contains(nome.toLowerCase())) {
+                          continue;
+                        }
+                        await db.insertJogador(
+                          nome: nome,
+                          genero: Genero.masculino,
+                          isLevantador: false,
+                          ataque: 3,
+                          defesa: 3,
+                          bloqueio: 3,
+                          saque: 3,
+                          passe: 3,
+                        );
+                        importados++;
+                      }
+                      if (ctx.mounted) {
+                        Navigator.of(ctx).pop();
+                        ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                          content: Text(importados == 0
+                              ? 'Todos os nomes já existem'
+                              : '$importados jogador${importados != 1 ? 'es' : ''} importado${importados != 1 ? 's' : ''}'),
+                          duration: const Duration(seconds: 3),
+                        ));
+                      }
+                    },
+              child: Text(
+                nomes.isEmpty
+                    ? 'Importar'
+                    : 'Importar ${nomes.length}',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _confirmarLimparTodos(BuildContext context) async {

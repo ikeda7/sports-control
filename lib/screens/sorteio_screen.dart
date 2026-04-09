@@ -21,35 +21,78 @@ const _coresTimes = [
 
 Color _corTime(int ordem) => _coresTimes[ordem % _coresTimes.length];
 
-// ─── Snake-draft generalizado (N times) ──────────────────────────────────────
-// Ordena por pesoTecnico desc e distribui em snake ABBA... para equalizar somas.
+// ─── Algoritmo de sorteio (N times) ──────────────────────────────────────────
+// Garante: 1 levantador por time (rotaciona por menos jogos), 1 mulher por time.
+// Preenche o restante com snake-draft por pesoTecnico.
 List<List<Jogador>> _sortearTimes(List<Jogador> presentes, int porTime) {
   final n = presentes.length ~/ porTime;
   if (n < 2) return [];
-
-  final shuffled = List<Jogador>.from(presentes)..shuffle(Random());
-  shuffled.sort((a, b) => b.pesoTecnico.compareTo(a.pesoTecnico));
+  final rng = Random();
 
   final times = List.generate(n, (_) => <Jogador>[]);
-  final jogando = shuffled.take(n * porTime).toList();
+  final Set<int> alocados = {};
 
-  for (var i = 0; i < jogando.length; i++) {
-    final round = i ~/ n;
-    final posInRound = i % n;
-    final teamIndex = round.isEven ? posInRound : (n - 1 - posInRound);
-    times[teamIndex].add(jogando[i]);
+  // 1. Levantadores: sort por partidasJogadas asc → menos jogos têm prioridade
+  final levs = presentes.where((j) => j.isLevantador).toList()
+    ..sort((a, b) => a.partidasJogadas.compareTo(b.partidasJogadas));
+  for (var i = 0; i < n && i < levs.length; i++) {
+    times[i].add(levs[i]);
+    alocados.add(levs[i].id);
+  }
+
+  // 2. Mulheres: garante ao menos 1 por time (melhores primeiro)
+  final mulheres = presentes
+      .where((j) => !alocados.contains(j.id) && j.genero == Genero.feminino)
+      .toList()
+    ..shuffle(rng)
+    ..sort((a, b) => b.pesoTecnico.compareTo(a.pesoTecnico));
+  for (var i = 0; i < n && mulheres.isNotEmpty; i++) {
+    final jaTem = times[i].any((j) => j.genero == Genero.feminino);
+    if (!jaTem) {
+      final m = mulheres.removeAt(0);
+      times[i].add(m);
+      alocados.add(m.id);
+    }
+  }
+
+  // 3. Restantes → snake-draft
+  final restantes = presentes
+      .where((j) => !alocados.contains(j.id))
+      .toList()
+    ..shuffle(rng)
+    ..sort((a, b) => b.pesoTecnico.compareTo(a.pesoTecnico));
+
+  final slots = List.generate(n, (i) => porTime - times[i].length);
+  final fillOrder = <int>[];
+  var fwd = true;
+  while (fillOrder.length < restantes.length) {
+    final seq = fwd
+        ? List.generate(n, (i) => i)
+        : List.generate(n, (i) => n - 1 - i);
+    fwd = !fwd;
+    var addedAny = false;
+    for (final ti in seq) {
+      if (slots[ti] > 0 && fillOrder.length < restantes.length) {
+        fillOrder.add(ti);
+        slots[ti]--;
+        addedAny = true;
+      }
+    }
+    if (!addedAny) break;
+  }
+
+  for (var i = 0; i < restantes.length && i < fillOrder.length; i++) {
+    times[fillOrder[i]].add(restantes[i]);
   }
 
   return times;
 }
 
 // ─── Geração da escala round-robin ───────────────────────────────────────────
-// Retorna pares (índiceA, índiceB) sem que o mesmo time jogue partidas seguidas.
 List<(int, int)> _gerarEscala(int n) {
   if (n < 2) return [];
   if (n == 2) return [(0, 1)];
 
-  // Todos os pares únicos
   final todos = <(int, int)>[];
   for (var i = 0; i < n; i++) {
     for (var j = i + 1; j < n; j++) {
@@ -57,7 +100,6 @@ List<(int, int)> _gerarEscala(int n) {
     }
   }
 
-  // Reordena para minimizar repetição de times consecutivos (greedy)
   final escala = <(int, int)>[];
   final restantes = List<(int, int)>.from(todos);
 
@@ -74,6 +116,26 @@ List<(int, int)> _gerarEscala(int n) {
   }
 
   return escala;
+}
+
+// ─── Recomendação da próxima partida ─────────────────────────────────────────
+(Time, Time)? _recomendarProxima(
+    List<Time> times, Map<int, Jogador> jogMap) {
+  if (times.length < 2) return null;
+
+  int totalJogos(Time t) => t.jogadorIds
+      .map((id) => jogMap[id]?.partidasJogadas ?? 0)
+      .fold(0, (a, b) => a + b);
+
+  final defensor = times.where((t) => t.vitorias == 1).firstOrNull;
+  final espera = times.where((t) => t.vitorias == 0).toList()
+    ..sort((a, b) => totalJogos(a).compareTo(totalJogos(b)));
+
+  if (defensor != null && espera.isNotEmpty) {
+    return (defensor, espera.first);
+  }
+  if (espera.length >= 2) return (espera[0], espera[1]);
+  return null;
 }
 
 // ─── Signal local ─────────────────────────────────────────────────────────────
@@ -116,7 +178,6 @@ class SorteioScreen extends StatelessWidget {
           'Confirme a presença dos jogadores na aba Check-in');
     }
 
-    // Bench = jogadores no check-in mas não em nenhum time
     final timesIds = times.expand((t) => t.jogadorIds).toSet();
     final bancal = checkins.where((j) => !timesIds.contains(j.id)).toList();
 
@@ -138,6 +199,8 @@ class SorteioScreen extends StatelessWidget {
                     const SizedBox(height: 12),
                     _buildBancal(bancal),
                   ],
+                  const SizedBox(height: 16),
+                  _buildProximaPartida(context, times, jogMap, sessao.id),
                   const SizedBox(height: 16),
                   _buildEscala(context, times, jogMap, sessao.id),
                   const SizedBox(height: 16),
@@ -238,7 +301,6 @@ class SorteioScreen extends StatelessWidget {
     int sessaoId,
   ) {
     if (times.length == 2) {
-      // Layout lado a lado para 2 times
       return LayoutBuilder(builder: (ctx, constraints) {
         final isWide = constraints.maxWidth > 520;
         final cardA = _buildTimeCard(
@@ -260,7 +322,6 @@ class SorteioScreen extends StatelessWidget {
       });
     }
 
-    // 3+ times: lista vertical
     return Column(
       children: [
         for (var i = 0; i < times.length; i++) ...[
@@ -318,34 +379,49 @@ class SorteioScreen extends StatelessWidget {
                             color: cor,
                             fontSize: 16,
                             fontWeight: FontWeight.bold)),
+                    if (time.vitorias > 0) ...[
+                      const SizedBox(width: 8),
+                      _buildVitoriasBadge(time.vitorias),
+                    ],
                     const Spacer(),
                     Text(
-                      'peso ${(pesoMedio * 100).round()}% médio',
+                      'peso ${(pesoMedio * 100).round()}%',
                       style: TextStyle(
                           color: cor.withValues(alpha: 0.6),
                           fontSize: 11),
                     ),
                     const SizedBox(width: 8),
-                    // Botão substituição
-                    if (bancal.isNotEmpty)
-                      GestureDetector(
-                        onTap: () => _dialogSubstituir(
-                            context, time, jogadores, bancal, sessaoId),
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFF9800)
-                                .withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(
-                              color: const Color(0xFFFF9800)
-                                  .withValues(alpha: 0.4),
+                    // Botão substituição — sempre visível
+                    GestureDetector(
+                      onTap: () {
+                        if (bancal.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  'Nenhum jogador no banco para substituição'),
+                              duration: Duration(seconds: 2),
                             ),
+                          );
+                          return;
+                        }
+                        _dialogSubstituir(
+                            context, time, jogadores, bancal, sessaoId);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF9800)
+                              .withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: const Color(0xFFFF9800)
+                                .withValues(alpha: 0.4),
                           ),
-                          child: const Icon(Icons.swap_horiz_rounded,
-                              color: Color(0xFFFF9800), size: 16),
                         ),
+                        child: const Icon(Icons.swap_horiz_rounded,
+                            color: Color(0xFFFF9800), size: 16),
                       ),
+                    ),
                   ],
                 ),
               ),
@@ -411,6 +487,31 @@ class SorteioScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildVitoriasBadge(int v) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFD700).withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+            color: const Color(0xFFFFD700).withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.military_tech_rounded,
+              color: Color(0xFFFFD700), size: 11),
+          const SizedBox(width: 2),
+          Text('$v/2',
+              style: const TextStyle(
+                  color: Color(0xFFFFD700),
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
   // ── Banco (jogadores fora dos times) ─────────────────────────────────────
   Widget _buildBancal(List<Jogador> bancal) {
     return ClipRRect(
@@ -466,6 +567,147 @@ class SorteioScreen extends StatelessWidget {
     );
   }
 
+  // ── Próxima partida recomendada ───────────────────────────────────────────
+  Widget _buildProximaPartida(
+    BuildContext context,
+    List<Time> times,
+    Map<int, Jogador> jogMap,
+    int sessaoId,
+  ) {
+    final rec = _recomendarProxima(times, jogMap);
+    if (rec == null) return const SizedBox.shrink();
+
+    final tA = rec.$1;
+    final tB = rec.$2;
+    final corA = _corTime(tA.ordem);
+    final corB = _corTime(tB.ordem);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF4CAF50).withValues(alpha: 0.07),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+                color: const Color(0xFF4CAF50).withValues(alpha: 0.3)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.recommend_rounded,
+                      color: Color(0xFF4CAF50), size: 15),
+                  SizedBox(width: 6),
+                  Text('Próxima Partida Recomendada',
+                      style: TextStyle(
+                          color: Color(0xFF4CAF50),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  // Time A
+                  Expanded(
+                    child: Row(children: [
+                      Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                              shape: BoxShape.circle, color: corA)),
+                      const SizedBox(width: 6),
+                      Text(tA.nome,
+                          style: TextStyle(
+                              color: corA,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14)),
+                      if (tA.vitorias > 0) ...[
+                        const SizedBox(width: 6),
+                        _buildVitoriasBadge(tA.vitorias),
+                      ],
+                    ]),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Text('vs',
+                        style: TextStyle(
+                            color: Colors.white30, fontSize: 12)),
+                  ),
+                  // Time B
+                  Expanded(
+                    child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          if (tB.vitorias > 0) ...[
+                            _buildVitoriasBadge(tB.vitorias),
+                            const SizedBox(width: 6),
+                          ],
+                          Text(tB.nome,
+                              style: TextStyle(
+                                  color: corB,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14)),
+                          const SizedBox(width: 6),
+                          Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                  shape: BoxShape.circle, color: corB)),
+                        ]),
+                  ),
+                  const SizedBox(width: 12),
+                  // Botão iniciar
+                  GestureDetector(
+                    onTap: () async {
+                      await db.criarPartida(
+                        sessaoId: sessaoId,
+                        timeAIds: tA.jogadorIds,
+                        timeBIds: tB.jogadorIds,
+                        timeANome: tA.nome,
+                        timeBNome: tB.nome,
+                      );
+                      tabIndexSignal.value = 3;
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4CAF50)
+                            .withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: const Color(0xFF4CAF50)
+                                .withValues(alpha: 0.5)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.play_arrow_rounded,
+                              color: Color(0xFF4CAF50), size: 16),
+                          SizedBox(width: 4),
+                          Text('Iniciar',
+                              style: TextStyle(
+                                  color: Color(0xFF4CAF50),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   // ── Escala de partidas (round-robin) ──────────────────────────────────────
   Widget _buildEscala(
     BuildContext context,
@@ -502,7 +744,8 @@ class SorteioScreen extends StatelessWidget {
                             fontSize: 13,
                             fontWeight: FontWeight.w600)),
                     const Spacer(),
-                    Text('${escala.length} jogo${escala.length != 1 ? 's' : ''}',
+                    Text(
+                        '${escala.length} jogo${escala.length != 1 ? 's' : ''}',
                         style: const TextStyle(
                             color: Colors.white30, fontSize: 12)),
                   ],
@@ -553,7 +796,6 @@ class SorteioScreen extends StatelessWidget {
               const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(
             children: [
-              // Número do jogo
               SizedBox(
                 width: 24,
                 child: Text('#$num',
@@ -561,7 +803,6 @@ class SorteioScreen extends StatelessWidget {
                         color: Colors.white30, fontSize: 12)),
               ),
               const SizedBox(width: 8),
-              // Time A
               Expanded(
                 child: Row(
                   children: [
@@ -580,14 +821,12 @@ class SorteioScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              // vs
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 8),
                 child: Text('vs',
                     style: TextStyle(
                         color: Colors.white30, fontSize: 12)),
               ),
-              // Time B
               Expanded(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
@@ -608,7 +847,6 @@ class SorteioScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              // Botão iniciar
               GestureDetector(
                 onTap: () async {
                   await db.criarPartida(
@@ -631,9 +869,9 @@ class SorteioScreen extends StatelessWidget {
                         color: const Color(0xFF4CAF50)
                             .withValues(alpha: 0.4)),
                   ),
-                  child: Row(
+                  child: const Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: const [
+                    children: [
                       Icon(Icons.play_arrow_rounded,
                           color: Color(0xFF4CAF50), size: 16),
                       SizedBox(width: 4),
@@ -704,8 +942,7 @@ class SorteioScreen extends StatelessWidget {
                   : Colors.white.withValues(alpha: 0.1),
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
-            icon:
-                const Icon(Icons.shuffle_rounded, size: 22),
+            icon: const Icon(Icons.shuffle_rounded, size: 22),
             label: const Text('Sortear Times',
                 style: TextStyle(
                     fontSize: 16, fontWeight: FontWeight.bold)),
@@ -744,7 +981,8 @@ class SorteioScreen extends StatelessWidget {
       ),
       icon: const Icon(Icons.refresh_rounded, size: 18),
       label: const Text('Re-sortear'),
-      onPressed: () => _confirmarResortear(context, checkins, porTime, sessaoId),
+      onPressed: () =>
+          _confirmarResortear(context, checkins, porTime, sessaoId),
     );
   }
 
@@ -791,9 +1029,6 @@ class SorteioScreen extends StatelessWidget {
   }
 
   // ── Dialog de substituição por time ──────────────────────────────────────
-  /// Substituição dentro de um time específico.
-  /// Bancal = jogadores no check-in que não estão em nenhum time.
-  /// Prioridade de sugestão: 1º menos partidas jogadas, 2º peso mais próximo.
   void _dialogSubstituir(
     BuildContext context,
     Time time,
@@ -930,10 +1165,10 @@ class SorteioScreen extends StatelessWidget {
                                   child: Text(
                                     '${j.partidasJogadas}j',
                                     style: TextStyle(
-                                      color:
-                                          j.partidasJogadas == minPartidas
-                                              ? const Color(0xFF4CAF50)
-                                              : Colors.white54,
+                                      color: j.partidasJogadas ==
+                                              minPartidas
+                                          ? const Color(0xFF4CAF50)
+                                          : Colors.white54,
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
                                     ),

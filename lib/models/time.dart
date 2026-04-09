@@ -7,6 +7,7 @@ class Time {
   final String nome; // "Time 1", "Time 2", etc.
   final List<int> jogadorIds;
   final int ordem; // índice base 0, usado para cor e ordenação
+  final int vitorias; // vitórias consecutivas na quadra (reset ao sair)
 
   const Time({
     required this.id,
@@ -14,13 +15,15 @@ class Time {
     required this.nome,
     required this.jogadorIds,
     required this.ordem,
+    this.vitorias = 0,
   });
 
-  Time copyWith({List<int>? jogadorIds}) => Time(
+  Time copyWith({List<int>? jogadorIds, int? vitorias}) => Time(
         id: id,
         sessaoId: sessaoId,
         nome: nome,
         jogadorIds: jogadorIds ?? this.jogadorIds,
         ordem: ordem,
+        vitorias: vitorias ?? this.vitorias,
       );
 }
