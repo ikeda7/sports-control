@@ -632,6 +632,7 @@ class JogadoresScreen extends StatelessWidget {
   void _mostrarDialogImportar(BuildContext context) {
     final ctrl = TextEditingController();
     var nomes = <String>[];
+    var generoImport = Genero.masculino;
 
     showDialog(
       context: context,
@@ -680,6 +681,35 @@ class JogadoresScreen extends StatelessWidget {
                   ),
                   onChanged: (v) =>
                       setState(() => nomes = _parsearNomes(v)),
+                ),
+                const SizedBox(height: 14),
+                const Text('Gênero padrão:',
+                    style: TextStyle(color: Colors.white54, fontSize: 13)),
+                const SizedBox(height: 8),
+                SegmentedButton<Genero>(
+                  segments: const [
+                    ButtonSegment(
+                        value: Genero.masculino,
+                        label: Text('Masculino'),
+                        icon: Icon(Icons.male)),
+                    ButtonSegment(
+                        value: Genero.feminino,
+                        label: Text('Feminino'),
+                        icon: Icon(Icons.female)),
+                  ],
+                  selected: {generoImport},
+                  onSelectionChanged: (v) =>
+                      setState(() => generoImport = v.first),
+                  style: ButtonStyle(
+                    backgroundColor:
+                        WidgetStateProperty.resolveWith((states) {
+                      if (states.contains(WidgetState.selected)) {
+                        return const Color(0xFFFF6B35)
+                            .withValues(alpha: 0.3);
+                      }
+                      return Colors.transparent;
+                    }),
+                  ),
                 ),
                 if (nomes.isNotEmpty) ...[
                   const SizedBox(height: 14),
@@ -747,7 +777,7 @@ class JogadoresScreen extends StatelessWidget {
                         }
                         await db.insertJogador(
                           nome: nome,
-                          genero: Genero.masculino,
+                          genero: generoImport,
                           isLevantador: false,
                           ataque: 3,
                           defesa: 3,

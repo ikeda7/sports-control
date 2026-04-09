@@ -232,6 +232,12 @@ class AppDatabase extends _$AppDatabase {
     return (delete(jogadoresTable)..where((t) => t.id.equals(id))).go();
   }
 
+  /// Retorna o conjunto de nomes em minúsculo já cadastrados (para dedup).
+  Future<Set<String>> getNomesJogadores() async {
+    final rows = await select(jogadoresTable).get();
+    return rows.map((r) => r.nome.toLowerCase()).toSet();
+  }
+
   /// Remove todos os jogadores, check-ins e times de uma vez.
   Future<void> deleteAllJogadores() async {
     await transaction(() async {

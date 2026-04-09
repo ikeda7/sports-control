@@ -35,7 +35,9 @@ Future<void> seedJogadores() async {
     ('Isabela Rocha',   Genero.feminino,  false, 4, 3, 5, 5, 3), // oposta/bloqueadora
   ];
 
+  final existentes = await db.getNomesJogadores();
   for (final (nome, genero, isLev, atq, def, blq, saq, pas) in jogadores) {
+    if (existentes.contains(nome.toLowerCase())) continue;
     await db.insertJogador(
       nome: nome,
       genero: genero,

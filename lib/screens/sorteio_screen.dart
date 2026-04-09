@@ -393,20 +393,8 @@ class SorteioScreen extends StatelessWidget {
                     const SizedBox(width: 8),
                     // Botão substituição — sempre visível
                     GestureDetector(
-                      onTap: () {
-                        if (bancal.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                  'Nenhum jogador no banco para substituição'),
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
-                          return;
-                        }
-                        _dialogSubstituir(
-                            context, time, jogadores, bancal, sessaoId);
-                      },
+                      onTap: () => _dialogSubstituir(
+                          context, time, jogadores, bancal, sessaoId),
                       child: Container(
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
@@ -663,16 +651,7 @@ class SorteioScreen extends StatelessWidget {
                   const SizedBox(width: 12),
                   // Botão iniciar
                   GestureDetector(
-                    onTap: () async {
-                      await db.criarPartida(
-                        sessaoId: sessaoId,
-                        timeAIds: tA.jogadorIds,
-                        timeBIds: tB.jogadorIds,
-                        timeANome: tA.nome,
-                        timeBNome: tB.nome,
-                      );
-                      tabIndexSignal.value = 3;
-                    },
+                    onTap: () => _iniciarPartida(context, sessaoId, tA, tB),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 6),
@@ -848,16 +827,7 @@ class SorteioScreen extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               GestureDetector(
-                onTap: () async {
-                  await db.criarPartida(
-                    sessaoId: sessaoId,
-                    timeAIds: tA.jogadorIds,
-                    timeBIds: tB.jogadorIds,
-                    timeANome: tA.nome,
-                    timeBNome: tB.nome,
-                  );
-                  tabIndexSignal.value = 3;
-                },
+                onTap: () => _iniciarPartida(context, sessaoId, tA, tB),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 10, vertical: 5),
@@ -947,16 +917,7 @@ class SorteioScreen extends StatelessWidget {
                 style: TextStyle(
                     fontSize: 16, fontWeight: FontWeight.bold)),
             onPressed: pode
-                ? () async {
-                    final novosTimes =
-                        _sortearTimes(checkins, porTime);
-                    await db.salvarTimes(
-                      sessaoId,
-                      novosTimes
-                          .map((t) => t.map((j) => j.id).toList())
-                          .toList(),
-                    );
-                  }
+                ? () => _sortearESalvar(context, checkins, porTime, sessaoId)
                 : null,
           ),
         ),
@@ -1013,13 +974,7 @@ class SorteioScreen extends StatelessWidget {
                 backgroundColor: const Color(0xFFFF6B35)),
             onPressed: () async {
               Navigator.of(ctx).pop();
-              final novosTimes = _sortearTimes(checkins, porTime);
-              await db.salvarTimes(
-                sessaoId,
-                novosTimes
-                    .map((t) => t.map((j) => j.id).toList())
-                    .toList(),
-              );
+              await _sortearESalvar(context, checkins, porTime, sessaoId);
             },
             child: const Text('Re-sortear'),
           ),
@@ -1036,6 +991,15 @@ class SorteioScreen extends StatelessWidget {
     List<Jogador> bancal,
     int sessaoId,
   ) {
+    // Se banco vazio, usa todos os jogadores cadastrados fora deste time (empréstimo)
+    final jogMap = jogadoresMapSignal.value;
+    final emprestimo = jogMap.values
+        .where((j) => !time.jogadorIds.contains(j.id))
+        .toList()
+      ..sort((a, b) => a.partidasJogadas.compareTo(b.partidasJogadas));
+    final candidatos = bancal.isNotEmpty ? bancal : emprestimo;
+    final isEmprestimo = bancal.isEmpty;
+
     Jogador? ausente;
     Jogador? substituto;
 
@@ -1044,8 +1008,8 @@ class SorteioScreen extends StatelessWidget {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setState) {
           final sugestoes = ausente == null
-              ? bancal
-              : ([...bancal]
+              ? candidatos
+              : ([...candidatos]
                 ..sort((a, b) {
                   final jDiff =
                       a.partidasJogadas.compareTo(b.partidasJogadas);
@@ -1108,10 +1072,13 @@ class SorteioScreen extends StatelessWidget {
                   ),
                   if (ausente != null) ...[
                     const SizedBox(height: 16),
-                    const Text(
-                        'Quem entra? (prioridade: menos partidas jogadas)',
-                        style: TextStyle(
-                            color: Colors.white54, fontSize: 13)),
+                    Text(
+                      isEmprestimo
+                          ? 'Quem entra? (empréstimo — todos os jogadores)'
+                          : 'Quem entra? (prioridade: menos partidas jogadas)',
+                      style: const TextStyle(
+                          color: Colors.white54, fontSize: 13),
+                    ),
                     const SizedBox(height: 8),
                     ...sugestoes.map((j) {
                       final pesoDiff =
@@ -1229,6 +1196,62 @@ class SorteioScreen extends StatelessWidget {
         },
       ),
     );
+  }
+
+  // ── Helper: iniciar partida com proteção contra duplicatas ───────────────
+  Future<void> _iniciarPartida(
+    BuildContext context,
+    int sessaoId,
+    Time tA,
+    Time tB,
+  ) async {
+    final emAndamento = partidaAtualSignal.value.value;
+    if (emAndamento != null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Já há uma partida em andamento: ${emAndamento.timeANome} vs ${emAndamento.timeBNome}'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+      return;
+    }
+    await db.criarPartida(
+      sessaoId: sessaoId,
+      timeAIds: tA.jogadorIds,
+      timeBIds: tB.jogadorIds,
+      timeANome: tA.nome,
+      timeBNome: tB.nome,
+    );
+    tabIndexSignal.value = 3;
+  }
+
+  // ── Helper: sortear e avisar se times ficaram sem mulher ─────────────────
+  Future<void> _sortearESalvar(
+    BuildContext context,
+    List<Jogador> checkins,
+    int porTime,
+    int sessaoId,
+  ) async {
+    final novosTimes = _sortearTimes(checkins, porTime);
+    final semMulher =
+        novosTimes.where((t) => !t.any((j) => j.genero == Genero.feminino)).length;
+    await db.salvarTimes(
+      sessaoId,
+      novosTimes.map((t) => t.map((j) => j.id).toList()).toList(),
+    );
+    if (semMulher > 0 && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              '$semMulher time${semMulher > 1 ? 's' : ''} sem mulher — jogadoras insuficientes para cobrir todos'),
+          backgroundColor: const Color(0xFFFF9800),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
   }
 
   // ── Mensagem de estado vazio ───────────────────────────────────────────────

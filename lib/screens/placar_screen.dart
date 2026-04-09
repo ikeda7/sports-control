@@ -510,6 +510,7 @@ class PlacarScreen extends StatelessWidget {
             style: TextStyle(color: Colors.white)),
         content: Text(
           'Placar final: ${partida.timeANome} ${partida.placarA} × ${partida.placarB} ${partida.timeBNome}\n\n'
+          '${partida.placarA == partida.placarB ? 'Empate — vitórias não serão atualizadas.\n\n' : ''}'
           'As partidas jogadas de todos os participantes serão incrementadas.',
           style: const TextStyle(color: Colors.white70),
         ),
