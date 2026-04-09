@@ -1,7 +1,7 @@
 import '../db.dart';
 import '../models/jogador.dart';
 
-/// Popula o banco com 22 jogadores genéricos para testes.
+/// Popula o banco com 22 jogadores genéricos para testes (11 homens, 11 mulheres, 2 levantadores).
 /// Chamado pelo botão "Popular dados de teste" na tela de Jogadores.
 Future<void> seedJogadores() async {
   // (nome, genero, isLevantador, ataque, defesa, bloqueio, saque, passe)

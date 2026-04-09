@@ -568,7 +568,7 @@ class JogadoresScreen extends StatelessWidget {
         title: const Text('Popular dados de teste?',
             style: TextStyle(color: Colors.white)),
         content: const Text(
-          'Serão adicionados 15 jogadores genéricos (8 homens, 7 mulheres, 2 levantadores). Os jogadores existentes não serão removidos.',
+          'Serão adicionados 22 jogadores genéricos (11 homens, 11 mulheres, 2 levantadores). Os jogadores existentes não serão removidos.',
           style: TextStyle(color: Colors.white70),
         ),
         actions: [
