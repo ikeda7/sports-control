@@ -7,6 +7,9 @@ import 'screens/main_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   db = AppDatabase();
+  // Encerra sessões ativas de dias anteriores para começar o dia com estado limpo.
+  // Jogadores e estatísticas (partidasJogadas) são preservados.
+  await db.encerrarSessoesAntigas();
   runApp(const SportsControlApp());
 }
 

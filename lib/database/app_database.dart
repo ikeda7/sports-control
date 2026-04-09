@@ -300,6 +300,20 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  /// Encerra automaticamente sessões ativas criadas em dias anteriores.
+  /// Chamado no startup do app para garantir estado limpo a cada dia.
+  Future<void> encerrarSessoesAntigas() async {
+    final hoje = DateTime.now();
+    final inicioDoDia =
+        DateTime(hoje.year, hoje.month, hoje.day).millisecondsSinceEpoch;
+
+    await (update(sessoesTable)
+          ..where((t) =>
+              t.status.equals('ativa') &
+              t.criadaEm.isSmallerThanValue(inicioDoDia)))
+        .write(const SessoesTableCompanion(status: Value('encerrada')));
+  }
+
   // ---------------------------------------------------------------------------
   // CHECK-INS
   // ---------------------------------------------------------------------------
