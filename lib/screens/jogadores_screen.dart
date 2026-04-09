@@ -8,14 +8,6 @@ import '../models/jogador.dart';
 import '../signals.dart';
 import '../utils/seed.dart';
 
-const _atributos = [
-  _Atrib('ATQ', Icons.flash_on_rounded),
-  _Atrib('DEF', Icons.shield_rounded),
-  _Atrib('BLQ', Icons.back_hand_rounded),
-  _Atrib('SAQ', Icons.sports_volleyball_rounded),
-  _Atrib('PAS', Icons.swap_horiz_rounded),
-];
-
 class JogadoresScreen extends StatelessWidget {
   const JogadoresScreen({super.key});
 
@@ -77,7 +69,6 @@ class JogadoresScreen extends StatelessWidget {
               ],
             ),
           ),
-          // Menu de opções da tela
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: Colors.white54),
             color: const Color(0xFF0D1F3C),
@@ -93,38 +84,27 @@ class JogadoresScreen extends StatelessWidget {
             itemBuilder: (_) => [
               const PopupMenuItem(
                 value: 'importar',
-                child: Row(
-                  children: [
-                    Icon(Icons.upload_file_outlined,
-                        color: Colors.white70, size: 18),
-                    SizedBox(width: 10),
-                    Text('Importar lista de nomes',
-                        style: TextStyle(color: Colors.white70)),
-                  ],
-                ),
+                child: Row(children: [
+                  Icon(Icons.upload_file_outlined, color: Colors.white70, size: 18),
+                  SizedBox(width: 10),
+                  Text('Importar lista de nomes', style: TextStyle(color: Colors.white70)),
+                ]),
               ),
               const PopupMenuItem(
                 value: 'seed',
-                child: Row(
-                  children: [
-                    Icon(Icons.science_outlined, color: Colors.white70, size: 18),
-                    SizedBox(width: 10),
-                    Text('Popular dados de teste',
-                        style: TextStyle(color: Colors.white70)),
-                  ],
-                ),
+                child: Row(children: [
+                  Icon(Icons.science_outlined, color: Colors.white70, size: 18),
+                  SizedBox(width: 10),
+                  Text('Popular dados de teste', style: TextStyle(color: Colors.white70)),
+                ]),
               ),
               PopupMenuItem(
                 value: 'limpar',
-                child: Row(
-                  children: [
-                    Icon(Icons.delete_sweep_outlined,
-                        color: Colors.red.shade300, size: 18),
-                    const SizedBox(width: 10),
-                    Text('Limpar todos os jogadores',
-                        style: TextStyle(color: Colors.red.shade300)),
-                  ],
-                ),
+                child: Row(children: [
+                  Icon(Icons.delete_sweep_outlined, color: Colors.red.shade300, size: 18),
+                  const SizedBox(width: 10),
+                  Text('Limpar todos os jogadores', style: TextStyle(color: Colors.red.shade300)),
+                ]),
               ),
             ],
           ),
@@ -187,29 +167,12 @@ class JogadoresScreen extends StatelessWidget {
                                       fontSize: 16)),
                               if (jogador.isLevantador) ...[
                                 const SizedBox(width: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 1),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFFFD700)
-                                        .withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(
-                                      color: const Color(0xFFFFD700)
-                                          .withValues(alpha: 0.5),
-                                    ),
-                                  ),
-                                  child: const Text('LEV',
-                                      style: TextStyle(
-                                          color: Color(0xFFFFD700),
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold)),
-                                ),
+                                _nivelBadge('LEV', const Color(0xFFFFD700)),
                               ],
                             ],
                           ),
                           const SizedBox(height: 6),
-                          _buildAtributosMini(jogador),
+                          _buildPapeisRow(jogador),
                         ],
                       ),
                     ),
@@ -239,38 +202,38 @@ class JogadoresScreen extends StatelessWidget {
       ),
       child: Center(
         child: Text(jogador.nome[0].toUpperCase(),
-            style: TextStyle(
-                color: cor, fontWeight: FontWeight.bold, fontSize: 18)),
+            style: TextStyle(color: cor, fontWeight: FontWeight.bold, fontSize: 18)),
       ),
     );
   }
 
-  Widget _buildAtributosMini(Jogador jogador) {
-    final vals = [
-      jogador.ataque, jogador.defesa, jogador.bloqueio,
-      jogador.saque, jogador.passe,
-    ];
-    return Row(
-      children: List.generate(5, (i) {
-        final v = vals[i];
-        final cor = v >= 4
-            ? const Color(0xFF4CAF50)
-            : v >= 3
-                ? const Color(0xFFFF9800)
-                : const Color(0xFFE53935);
-        return Padding(
-          padding: const EdgeInsets.only(right: 10),
-          child: Column(
-            children: [
-              Text('$v',
-                  style: TextStyle(
-                      color: cor, fontSize: 13, fontWeight: FontWeight.bold)),
-              Text(_atributos[i].abrev,
-                  style: const TextStyle(color: Colors.white30, fontSize: 9)),
-            ],
-          ),
-        );
-      }),
+  Widget _buildPapeisRow(Jogador jogador) {
+    final corNivel = switch (jogador.nivel) {
+      Nivel.iniciante => const Color(0xFF9E9E9E),
+      Nivel.intermediario => const Color(0xFF2196F3),
+      Nivel.avancado => const Color(0xFF4CAF50),
+    };
+    return Wrap(
+      spacing: 6,
+      runSpacing: 4,
+      children: [
+        _nivelBadge(jogador.nivel.label, corNivel),
+        for (final p in jogador.papeis)
+          _nivelBadge(p.label, const Color(0xFFFF6B35)),
+      ],
+    );
+  }
+
+  Widget _nivelBadge(String label, Color cor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: cor.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: cor.withValues(alpha: 0.4)),
+      ),
+      child: Text(label,
+          style: TextStyle(color: cor, fontSize: 10, fontWeight: FontWeight.bold)),
     );
   }
 
@@ -281,16 +244,12 @@ class JogadoresScreen extends StatelessWidget {
       children: [
         Text('${jogador.partidasJogadas}',
             style: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold)),
-        const Text('partidas',
-            style: TextStyle(color: Colors.white38, fontSize: 10)),
+                color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+        const Text('partidas', style: TextStyle(color: Colors.white38, fontSize: 10)),
         const SizedBox(height: 4),
         GestureDetector(
           onTap: () => _confirmarDelete(context, jogador),
-          child:
-              Icon(Icons.delete_outline, color: Colors.red.shade300, size: 18),
+          child: Icon(Icons.delete_outline, color: Colors.red.shade300, size: 18),
         ),
       ],
     );
@@ -301,12 +260,10 @@ class JogadoresScreen extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.sports_volleyball,
-              size: 64, color: Colors.white.withValues(alpha: 0.15)),
+          Icon(Icons.sports_volleyball, size: 64, color: Colors.white.withValues(alpha: 0.15)),
           const SizedBox(height: 16),
           Text('Nenhum jogador cadastrado',
-              style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.4), fontSize: 16)),
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 16)),
           const SizedBox(height: 24),
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
@@ -327,12 +284,8 @@ class JogadoresScreen extends StatelessWidget {
   void _mostrarDialogJogador(BuildContext context, Jogador? existente) {
     final nomeCtrl = TextEditingController(text: existente?.nome ?? '');
     var genero = existente?.genero ?? Genero.masculino;
-    var isLevantador = existente?.isLevantador ?? false;
-    var ataque = existente?.ataque ?? 3;
-    var defesa = existente?.defesa ?? 3;
-    var bloqueio = existente?.bloqueio ?? 3;
-    var saque = existente?.saque ?? 3;
-    var passe = existente?.passe ?? 3;
+    var nivel = existente?.nivel ?? Nivel.intermediario;
+    var papeis = List<Papel>.from(existente?.papeis ?? []);
     final editando = existente != null;
 
     showDialog(
@@ -360,39 +313,28 @@ class JogadoresScreen extends StatelessWidget {
                     labelStyle: const TextStyle(color: Colors.white54),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.24)),
+                      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.24)),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          const BorderSide(color: Color(0xFFFF6B35)),
+                      borderSide: const BorderSide(color: Color(0xFFFF6B35)),
                     ),
                   ),
                 ),
                 const SizedBox(height: 16),
 
                 // Gênero
-                const Text('Gênero',
-                    style: TextStyle(color: Colors.white54, fontSize: 13)),
+                const Text('Gênero', style: TextStyle(color: Colors.white54, fontSize: 13)),
                 const SizedBox(height: 8),
                 SegmentedButton<Genero>(
                   segments: const [
-                    ButtonSegment(
-                        value: Genero.masculino,
-                        label: Text('Masculino'),
-                        icon: Icon(Icons.male)),
-                    ButtonSegment(
-                        value: Genero.feminino,
-                        label: Text('Feminino'),
-                        icon: Icon(Icons.female)),
+                    ButtonSegment(value: Genero.masculino, label: Text('Masculino'), icon: Icon(Icons.male)),
+                    ButtonSegment(value: Genero.feminino, label: Text('Feminino'), icon: Icon(Icons.female)),
                   ],
                   selected: {genero},
-                  onSelectionChanged: (v) =>
-                      setState(() => genero = v.first),
+                  onSelectionChanged: (v) => setState(() => genero = v.first),
                   style: ButtonStyle(
-                    backgroundColor:
-                        WidgetStateProperty.resolveWith((states) {
+                    backgroundColor: WidgetStateProperty.resolveWith((states) {
                       if (states.contains(WidgetState.selected)) {
                         return const Color(0xFFFF6B35).withValues(alpha: 0.3);
                       }
@@ -400,104 +342,133 @@ class JogadoresScreen extends StatelessWidget {
                     }),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
-                // Toggle Levantador
-                Container(
-                  decoration: BoxDecoration(
-                    color: isLevantador
-                        ? const Color(0xFFFFD700).withValues(alpha: 0.1)
-                        : Colors.white.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isLevantador
-                          ? const Color(0xFFFFD700).withValues(alpha: 0.4)
-                          : Colors.white.withValues(alpha: 0.1),
-                    ),
-                  ),
-                  child: SwitchListTile(
-                    dense: true,
-                    title: const Text('Levantador fixo (6x0)',
-                        style:
-                            TextStyle(color: Colors.white, fontSize: 14)),
-                    subtitle: Text(
-                      'Jogador que levanta em todas as rotações',
-                      style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.4),
-                          fontSize: 11),
-                    ),
-                    value: isLevantador,
-                    activeThumbColor: const Color(0xFFFFD700),
-                    onChanged: (v) =>
-                        setState(() => isLevantador = v),
-                    secondary: Icon(
-                      Icons.star_rounded,
-                      color: isLevantador
-                          ? const Color(0xFFFFD700)
-                          : Colors.white24,
-                    ),
-                  ),
+                // Nível
+                const Text('Nível técnico',
+                    style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 4),
+                const Text(
+                  'Determina o peso no sorteio equilibrado',
+                  style: TextStyle(color: Colors.white38, fontSize: 11),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: Nivel.values.map((n) {
+                    final selecionado = nivel == n;
+                    final cor = switch (n) {
+                      Nivel.iniciante => const Color(0xFF9E9E9E),
+                      Nivel.intermediario => const Color(0xFF2196F3),
+                      Nivel.avancado => const Color(0xFF4CAF50),
+                    };
+                    return Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 3),
+                        child: GestureDetector(
+                          onTap: () => setState(() => nivel = n),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              color: selecionado
+                                  ? cor.withValues(alpha: 0.2)
+                                  : Colors.white.withValues(alpha: 0.04),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: selecionado ? cor : Colors.white.withValues(alpha: 0.12),
+                                width: selecionado ? 1.5 : 1,
+                              ),
+                            ),
+                            child: Text(n.label,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                    color: selecionado ? cor : Colors.white38,
+                                    fontSize: 12,
+                                    fontWeight: selecionado
+                                        ? FontWeight.bold
+                                        : FontWeight.normal)),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
                 ),
                 const SizedBox(height: 20),
 
-                // Atributos
-                const Text('Atributos',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600)),
+                // Papéis
+                const Text('Papéis / Posições',
+                    style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 4),
                 const Text(
-                  'Avalie cada habilidade de 1 (fraco) a 5 (excelente)',
+                  'Selecione um ou mais (opcional)',
                   style: TextStyle(color: Colors.white38, fontSize: 11),
                 ),
-                const SizedBox(height: 12),
-                _buildStarRow('⚡ Ataque', ataque,
-                    (v) => setState(() => ataque = v)),
-                _buildStarRow('🛡️ Defesa', defesa,
-                    (v) => setState(() => defesa = v)),
-                _buildStarRow('✋ Bloqueio', bloqueio,
-                    (v) => setState(() => bloqueio = v)),
-                _buildStarRow('🏐 Saque', saque,
-                    (v) => setState(() => saque = v)),
-                _buildStarRow('🤝 Passe', passe,
-                    (v) => setState(() => passe = v)),
-                const SizedBox(height: 12),
-                _buildPesoPreview(ataque, defesa, bloqueio, saque, passe),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: Papel.values.map((p) {
+                    final selecionado = papeis.contains(p);
+                    final cor = p == Papel.levantador
+                        ? const Color(0xFFFFD700)
+                        : const Color(0xFFFF6B35);
+                    return GestureDetector(
+                      onTap: () => setState(() {
+                        if (selecionado) {
+                          papeis.remove(p);
+                        } else {
+                          papeis.add(p);
+                        }
+                      }),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: selecionado
+                              ? cor.withValues(alpha: 0.2)
+                              : Colors.white.withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: selecionado ? cor : Colors.white.withValues(alpha: 0.15),
+                            width: selecionado ? 1.5 : 1,
+                          ),
+                        ),
+                        child: Text(p.label,
+                            style: TextStyle(
+                                color: selecionado ? cor : Colors.white38,
+                                fontSize: 13,
+                                fontWeight: selecionado
+                                    ? FontWeight.bold
+                                    : FontWeight.normal)),
+                      ),
+                    );
+                  }).toList(),
+                ),
               ],
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancelar',
-                  style: TextStyle(color: Colors.white38)),
+              child: const Text('Cancelar', style: TextStyle(color: Colors.white38)),
             ),
             FilledButton(
-              style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF6B35)),
+              style: FilledButton.styleFrom(backgroundColor: const Color(0xFFFF6B35)),
               onPressed: () async {
                 final nome = nomeCtrl.text.trim();
                 if (nome.isEmpty) return;
                 if (editando) {
-                  await db.updateJogadorAtributos(existente.id,
+                  await db.updateJogador(existente.id,
                       nome: nome,
-                      isLevantador: isLevantador,
-                      ataque: ataque,
-                      defesa: defesa,
-                      bloqueio: bloqueio,
-                      saque: saque,
-                      passe: passe);
+                      genero: genero,
+                      nivel: nivel,
+                      papeis: papeis);
                 } else {
                   await db.insertJogador(
                       nome: nome,
                       genero: genero,
-                      isLevantador: isLevantador,
-                      ataque: ataque,
-                      defesa: defesa,
-                      bloqueio: bloqueio,
-                      saque: saque,
-                      passe: passe);
+                      nivel: nivel,
+                      papeis: papeis);
                 }
                 if (ctx.mounted) Navigator.of(ctx).pop();
               },
@@ -505,65 +476,6 @@ class JogadoresScreen extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildStarRow(
-      String label, int valor, void Function(int) onChange) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 100,
-            child: Text(label,
-                style: const TextStyle(color: Colors.white70, fontSize: 13)),
-          ),
-          ...List.generate(
-            5,
-            (i) => GestureDetector(
-              onTap: () => onChange(i + 1),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 3),
-                child: Icon(
-                  i < valor ? Icons.star_rounded : Icons.star_outline_rounded,
-                  color: i < valor
-                      ? const Color(0xFFFF6B35)
-                      : Colors.white24,
-                  size: 28,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPesoPreview(
-      int ataque, int defesa, int bloqueio, int saque, int passe) {
-    final pct = ((ataque + defesa + bloqueio + saque + passe) / 25.0 * 100)
-        .round();
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.balance, color: Colors.white38, size: 16),
-          const SizedBox(width: 8),
-          const Text('Peso para sorteio: ',
-              style: TextStyle(color: Colors.white38, fontSize: 12)),
-          Text('$pct%',
-              style: const TextStyle(
-                  color: Color(0xFFFF6B35),
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold)),
-        ],
       ),
     );
   }
@@ -588,12 +500,10 @@ class JogadoresScreen extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancelar',
-                style: TextStyle(color: Colors.white38)),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.white38)),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFFF6B35)),
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFFF6B35)),
             onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text('Popular'),
           ),
@@ -605,7 +515,6 @@ class JogadoresScreen extends StatelessWidget {
 
   // ── IMPORTAR LISTA DE NOMES ─────────────────────────────────────────────────
 
-  /// Extrai nomes de texto colado (WhatsApp, numerada, um por linha).
   static List<_ImportEntry> _parsearNomes(String texto) {
     final resultado = <_ImportEntry>[];
     for (var linha in texto.split('\n')) {
@@ -657,23 +566,20 @@ class JogadoresScreen extends StatelessWidget {
                     hintText:
                         '+55 11 99999-9999 ~ João Silva\n1. Maria Santos\nPedro Costa...',
                     hintStyle: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        fontSize: 12),
+                        color: Colors.white.withValues(alpha: 0.2), fontSize: 12),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.2)),
+                      borderSide:
+                          BorderSide(color: Colors.white.withValues(alpha: 0.2)),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          const BorderSide(color: Color(0xFFFF6B35)),
+                      borderSide: const BorderSide(color: Color(0xFFFF6B35)),
                     ),
                     filled: true,
                     fillColor: Colors.white.withValues(alpha: 0.04),
                   ),
-                  onChanged: (v) =>
-                      setState(() => entradas = _parsearNomes(v)),
+                  onChanged: (v) => setState(() => entradas = _parsearNomes(v)),
                 ),
                 if (entradas.isNotEmpty) ...[
                   const SizedBox(height: 12),
@@ -699,9 +605,8 @@ class JogadoresScreen extends StatelessWidget {
                             children: [
                               GestureDetector(
                                 onTap: () => setState(() {
-                                  e.genero = isFem
-                                      ? Genero.masculino
-                                      : Genero.feminino;
+                                  e.genero =
+                                      isFem ? Genero.masculino : Genero.feminino;
                                 }),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
@@ -734,8 +639,7 @@ class JogadoresScreen extends StatelessWidget {
                               Expanded(
                                 child: Text(e.nome,
                                     style: const TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 13)),
+                                        color: Colors.white70, fontSize: 13)),
                               ),
                             ],
                           ),
@@ -745,10 +649,9 @@ class JogadoresScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Atributos padrão (3/5). Edite individualmente depois.',
+                    'Nível padrão: Intermediário. Edite individualmente depois.',
                     style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.3),
-                        fontSize: 11),
+                        color: Colors.white.withValues(alpha: 0.3), fontSize: 11),
                   ),
                 ],
               ],
@@ -757,8 +660,7 @@ class JogadoresScreen extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancelar',
-                  style: TextStyle(color: Colors.white38)),
+              child: const Text('Cancelar', style: TextStyle(color: Colors.white38)),
             ),
             FilledButton(
               style: FilledButton.styleFrom(
@@ -774,18 +676,12 @@ class JogadoresScreen extends StatelessWidget {
                               .toSet();
                       var importados = 0;
                       for (final e in entradas) {
-                        if (existentes.contains(e.nome.toLowerCase())) {
-                          continue;
-                        }
+                        if (existentes.contains(e.nome.toLowerCase())) continue;
                         await db.insertJogador(
                           nome: e.nome,
                           genero: e.genero,
-                          isLevantador: false,
-                          ataque: 3,
-                          defesa: 3,
-                          bloqueio: 3,
-                          saque: 3,
-                          passe: 3,
+                          nivel: Nivel.intermediario,
+                          papeis: [],
                         );
                         importados++;
                       }
@@ -799,9 +695,7 @@ class JogadoresScreen extends StatelessWidget {
                         ));
                       }
                     },
-              child: Text(entradas.isEmpty
-                  ? 'Importar'
-                  : 'Importar ${entradas.length}'),
+              child: Text(entradas.isEmpty ? 'Importar' : 'Importar ${entradas.length}'),
             ),
           ],
         ),
@@ -827,12 +721,10 @@ class JogadoresScreen extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancelar',
-                style: TextStyle(color: Colors.white38)),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.white38)),
           ),
           FilledButton(
-            style:
-                FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
             onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text('Limpar tudo'),
           ),
@@ -851,19 +743,16 @@ class JogadoresScreen extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(color: Colors.red.withValues(alpha: 0.3)),
         ),
-        title: const Text('Remover jogador?',
-            style: TextStyle(color: Colors.white)),
+        title: const Text('Remover jogador?', style: TextStyle(color: Colors.white)),
         content: Text('${jogador.nome} será removido permanentemente.',
             style: const TextStyle(color: Colors.white70)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancelar',
-                style: TextStyle(color: Colors.white38)),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.white38)),
           ),
           FilledButton(
-            style:
-                FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
             onPressed: () async {
               await db.deleteJogador(jogador.id);
               if (ctx.mounted) Navigator.of(ctx).pop();
@@ -874,12 +763,6 @@ class JogadoresScreen extends StatelessWidget {
       ),
     );
   }
-}
-
-class _Atrib {
-  final String abrev;
-  final IconData icon;
-  const _Atrib(this.abrev, this.icon);
 }
 
 class _ImportEntry {

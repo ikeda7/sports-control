@@ -7,35 +7,69 @@ enum Genero {
       Genero.values.firstWhere((e) => e.name == value);
 }
 
+/// Nível técnico geral do jogador. Determina o peso no sorteio.
+enum Nivel {
+  iniciante,
+  intermediario,
+  avancado;
+
+  double get peso => switch (this) {
+        Nivel.iniciante => 0.33,
+        Nivel.intermediario => 0.66,
+        Nivel.avancado => 1.0,
+      };
+
+  String get label => switch (this) {
+        Nivel.iniciante => 'Iniciante',
+        Nivel.intermediario => 'Intermediário',
+        Nivel.avancado => 'Avançado',
+      };
+
+  static Nivel fromString(String value) =>
+      Nivel.values.firstWhere((e) => e.name == value,
+          orElse: () => Nivel.intermediario);
+}
+
+/// Papel/posição preferencial do jogador no vôlei.
+enum Papel {
+  levantador,
+  atacante,
+  libero,
+  defensor,
+  bloqueador,
+  sacador,
+  polivalente;
+
+  String get label => switch (this) {
+        Papel.levantador => 'Levantador',
+        Papel.atacante => 'Atacante',
+        Papel.libero => 'Líbero',
+        Papel.defensor => 'Defensor',
+        Papel.bloqueador => 'Bloqueador',
+        Papel.sacador => 'Sacador',
+        Papel.polivalente => 'Polivalente',
+      };
+
+  static Papel fromString(String value) =>
+      Papel.values.firstWhere((e) => e.name == value,
+          orElse: () => Papel.polivalente);
+}
+
 /// Modelo de domínio do jogador — sem dependência de banco de dados.
 ///
-/// Em um rachão 6x0 (levantador fixo), os jogadores são avaliados por
-/// atributos individuais. O [pesoTecnico] é calculado automaticamente
-/// como a média normalizada dos 5 atributos (0.2 a 1.0), usado pelo
-/// algoritmo de sorteio para equilibrar os times.
+/// O [pesoTecnico] é derivado do [nivel] e usado pelo algoritmo de sorteio
+/// para equilibrar os times (snake-draft).
+///
+/// [isLevantador] é derivado automaticamente de [papeis] (contém [Papel.levantador]),
+/// mas pode ser sobreposto pelo campo explícito para o sistema 6x0.
 class Jogador {
   final int id;
   final String nome;
   final Genero genero;
+  final Nivel nivel;
 
-  /// Se true, este jogador é o levantador fixo (sistema 6x0).
-  /// Sinalizados visualmente nos times sorteados.
-  final bool isLevantador;
-
-  /// Potência e precisão de ataque (cortada, manchete de ataque). 1–5.
-  final int ataque;
-
-  /// Qualidade da defesa de chão (manchete, mergulho, cobertura). 1–5.
-  final int defesa;
-
-  /// Eficiência no bloqueio na rede. 1–5.
-  final int bloqueio;
-
-  /// Qualidade do saque (float, viagem, potência). 1–5.
-  final int saque;
-
-  /// Qualidade do passe/recepção para o levantador. 1–5.
-  final int passe;
+  /// Papéis/posições que o jogador desempenha.
+  final List<Papel> papeis;
 
   /// Total de partidas disputadas — usado para garantir rodízio justo.
   final int partidasJogadas;
@@ -44,43 +78,32 @@ class Jogador {
     required this.id,
     required this.nome,
     required this.genero,
-    required this.isLevantador,
-    required this.ataque,
-    required this.defesa,
-    required this.bloqueio,
-    required this.saque,
-    required this.passe,
+    required this.nivel,
+    required this.papeis,
     required this.partidasJogadas,
   });
 
-  /// Peso técnico derivado automaticamente dos atributos.
-  /// Range: 0.2 (tudo 1★) → 1.0 (tudo 5★).
-  double get pesoTecnico => (ataque + defesa + bloqueio + saque + passe) / 25.0;
+  /// Peso técnico derivado do nível. Usado pelo snake-draft.
+  /// Iniciante=0.33, Intermediário=0.66, Avançado=1.0.
+  double get pesoTecnico => nivel.peso;
 
-  double get mediaAtributos => (ataque + defesa + bloqueio + saque + passe) / 5.0;
+  /// True se o jogador tem o papel de levantador.
+  bool get isLevantador => papeis.contains(Papel.levantador);
 
   Jogador copyWith({
     int? id,
     String? nome,
     Genero? genero,
-    bool? isLevantador,
-    int? ataque,
-    int? defesa,
-    int? bloqueio,
-    int? saque,
-    int? passe,
+    Nivel? nivel,
+    List<Papel>? papeis,
     int? partidasJogadas,
   }) {
     return Jogador(
       id: id ?? this.id,
       nome: nome ?? this.nome,
       genero: genero ?? this.genero,
-      isLevantador: isLevantador ?? this.isLevantador,
-      ataque: ataque ?? this.ataque,
-      defesa: defesa ?? this.defesa,
-      bloqueio: bloqueio ?? this.bloqueio,
-      saque: saque ?? this.saque,
-      passe: passe ?? this.passe,
+      nivel: nivel ?? this.nivel,
+      papeis: papeis ?? this.papeis,
       partidasJogadas: partidasJogadas ?? this.partidasJogadas,
     );
   }

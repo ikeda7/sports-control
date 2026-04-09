@@ -345,11 +345,6 @@ class SorteioScreen extends StatelessWidget {
         .map((id) => jogMap[id])
         .whereType<Jogador>()
         .toList();
-    final pesoMedio = jogadores.isEmpty
-        ? 0.0
-        : jogadores.fold(0.0, (s, j) => s + j.pesoTecnico) /
-            jogadores.length;
-
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: BackdropFilter(
@@ -385,7 +380,7 @@ class SorteioScreen extends StatelessWidget {
                     ],
                     const Spacer(),
                     Text(
-                      'peso ${(pesoMedio * 100).round()}%',
+                      _resumoNivel(jogadores),
                       style: TextStyle(
                           color: cor.withValues(alpha: 0.6),
                           fontSize: 11),
@@ -467,7 +462,7 @@ class SorteioScreen extends StatelessWidget {
                                 size: 14),
                           ),
                         Text(
-                          '${(j.pesoTecnico * 100).round()}%',
+                          j.nivel.label,
                           style: TextStyle(
                               color: cor.withValues(alpha: 0.6),
                               fontSize: 11),
@@ -481,6 +476,18 @@ class SorteioScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Resumo de níveis do time, ex: "2 Avançado · 1 Intermediário"
+  String _resumoNivel(List<Jogador> jogadores) {
+    final contagem = <Nivel, int>{};
+    for (final j in jogadores) {
+      contagem[j.nivel] = (contagem[j.nivel] ?? 0) + 1;
+    }
+    return [Nivel.avancado, Nivel.intermediario, Nivel.iniciante]
+        .where((n) => contagem.containsKey(n))
+        .map((n) => '${contagem[n]} ${n.label}')
+        .join(' · ');
   }
 
   Widget _buildVitoriasBadge(int v) {
@@ -1089,10 +1096,7 @@ class SorteioScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     ...sugestoes.map((j) {
-                      final pesoDiff =
-                          ((j.pesoTecnico - ausente!.pesoTecnico) * 100)
-                              .abs()
-                              .round();
+                      final mesmoNivel = j.nivel == ausente!.nivel;
                       final minPartidas = sugestoes
                           .map((s) => s.partidasJogadas)
                           .reduce((a, b) => a < b ? a : b);
@@ -1151,9 +1155,9 @@ class SorteioScreen extends StatelessWidget {
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
-                                  pesoDiff == 0 ? '=' : '±$pesoDiff%',
+                                  j.nivel.label,
                                   style: TextStyle(
-                                    color: pesoDiff <= 10
+                                    color: mesmoNivel
                                         ? const Color(0xFF4CAF50)
                                         : const Color(0xFFFF9800),
                                     fontSize: 11,

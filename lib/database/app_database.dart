@@ -25,16 +25,12 @@ class JogadoresTable extends Table {
   TextColumn get nome => text().withLength(min: 1, max: 100)();
   TextColumn get genero => text()();
 
-  // Levantador fixo (sistema 6x0)
-  BoolColumn get isLevantador =>
-      boolean().withDefault(const Constant(false))();
+  // Nível técnico: 'iniciante' | 'intermediario' | 'avancado'
+  TextColumn get nivel =>
+      text().withDefault(const Constant('intermediario'))();
 
-  // Atributos de habilidade (1–5 estrelas)
-  IntColumn get ataque => integer().withDefault(const Constant(3))();
-  IntColumn get defesa => integer().withDefault(const Constant(3))();
-  IntColumn get bloqueio => integer().withDefault(const Constant(3))();
-  IntColumn get saque => integer().withDefault(const Constant(3))();
-  IntColumn get passe => integer().withDefault(const Constant(3))();
+  // Papéis serializados como CSV: 'levantador,atacante' etc.
+  TextColumn get papeis => text().withDefault(const Constant(''))();
 
   IntColumn get partidasJogadas => integer().withDefault(const Constant(0))();
 }
@@ -120,7 +116,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -167,6 +163,27 @@ class AppDatabase extends _$AppDatabase {
               'ALTER TABLE times ADD COLUMN vitorias INTEGER NOT NULL DEFAULT 0',
             );
           }
+          if (from < 7) {
+            // v6→v7: substitui 5 atributos numéricos por nivel + papeis
+            await customStatement(
+              "ALTER TABLE jogadores ADD COLUMN nivel TEXT NOT NULL DEFAULT 'intermediario'",
+            );
+            await customStatement(
+              "ALTER TABLE jogadores ADD COLUMN papeis TEXT NOT NULL DEFAULT ''",
+            );
+            // Converte média dos atributos antigos para nivel
+            await customStatement('''
+              UPDATE jogadores SET nivel = CASE
+                WHEN (ataque + defesa + bloqueio + saque + passe) / 5.0 < 2.33 THEN 'iniciante'
+                WHEN (ataque + defesa + bloqueio + saque + passe) / 5.0 >= 3.66 THEN 'avancado'
+                ELSE 'intermediario'
+              END
+            ''');
+            // Migra levantadores antigos para o papel correspondente
+            await customStatement(
+              "UPDATE jogadores SET papeis = 'levantador' WHERE is_levantador = 1",
+            );
+          }
         },
       );
 
@@ -184,46 +201,32 @@ class AppDatabase extends _$AppDatabase {
   Future<int> insertJogador({
     required String nome,
     required Genero genero,
-    bool isLevantador = false,
-    required int ataque,
-    required int defesa,
-    required int bloqueio,
-    required int saque,
-    required int passe,
+    required Nivel nivel,
+    required List<Papel> papeis,
   }) {
     return into(jogadoresTable).insert(
       JogadoresTableCompanion.insert(
         nome: nome,
         genero: genero.name,
-        isLevantador: Value(isLevantador),
-        ataque: Value(ataque),
-        defesa: Value(defesa),
-        bloqueio: Value(bloqueio),
-        saque: Value(saque),
-        passe: Value(passe),
+        nivel: Value(nivel.name),
+        papeis: Value(_serializePapeis(papeis)),
       ),
     );
   }
 
-  Future<void> updateJogadorAtributos(
+  Future<void> updateJogador(
     int id, {
     required String nome,
-    required bool isLevantador,
-    required int ataque,
-    required int defesa,
-    required int bloqueio,
-    required int saque,
-    required int passe,
+    required Genero genero,
+    required Nivel nivel,
+    required List<Papel> papeis,
   }) async {
     await (update(jogadoresTable)..where((t) => t.id.equals(id))).write(
       JogadoresTableCompanion(
         nome: Value(nome),
-        isLevantador: Value(isLevantador),
-        ataque: Value(ataque),
-        defesa: Value(defesa),
-        bloqueio: Value(bloqueio),
-        saque: Value(saque),
-        passe: Value(passe),
+        genero: Value(genero.name),
+        nivel: Value(nivel.name),
+        papeis: Value(_serializePapeis(papeis)),
       ),
     );
   }
@@ -581,12 +584,8 @@ class AppDatabase extends _$AppDatabase {
         id: row.id,
         nome: row.nome,
         genero: Genero.fromString(row.genero),
-        isLevantador: row.isLevantador,
-        ataque: row.ataque,
-        defesa: row.defesa,
-        bloqueio: row.bloqueio,
-        saque: row.saque,
-        passe: row.passe,
+        nivel: Nivel.fromString(row.nivel),
+        papeis: _deserializePapeis(row.papeis),
         partidasJogadas: row.partidasJogadas,
       );
 
@@ -625,6 +624,14 @@ class AppDatabase extends _$AppDatabase {
   List<int> _deserializeIds(String raw) {
     if (raw.isEmpty) return [];
     return raw.split(',').map(int.parse).toList();
+  }
+
+  String _serializePapeis(List<Papel> papeis) =>
+      papeis.map((p) => p.name).join(',');
+
+  List<Papel> _deserializePapeis(String raw) {
+    if (raw.isEmpty) return [];
+    return raw.split(',').map(Papel.fromString).toList();
   }
 }
 

@@ -44,72 +44,25 @@ class $JogadoresTableTable extends JogadoresTable
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _isLevantadorMeta = const VerificationMeta(
-    'isLevantador',
-  );
+  static const VerificationMeta _nivelMeta = const VerificationMeta('nivel');
   @override
-  late final GeneratedColumn<bool> isLevantador = GeneratedColumn<bool>(
-    'is_levantador',
+  late final GeneratedColumn<String> nivel = GeneratedColumn<String>(
+    'nivel',
     aliasedName,
     false,
-    type: DriftSqlType.bool,
+    type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("is_levantador" IN (0, 1))',
-    ),
-    defaultValue: const Constant(false),
+    defaultValue: const Constant('intermediario'),
   );
-  static const VerificationMeta _ataqueMeta = const VerificationMeta('ataque');
+  static const VerificationMeta _papeisMeta = const VerificationMeta('papeis');
   @override
-  late final GeneratedColumn<int> ataque = GeneratedColumn<int>(
-    'ataque',
+  late final GeneratedColumn<String> papeis = GeneratedColumn<String>(
+    'papeis',
     aliasedName,
     false,
-    type: DriftSqlType.int,
+    type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(3),
-  );
-  static const VerificationMeta _defesaMeta = const VerificationMeta('defesa');
-  @override
-  late final GeneratedColumn<int> defesa = GeneratedColumn<int>(
-    'defesa',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(3),
-  );
-  static const VerificationMeta _bloqueioMeta = const VerificationMeta(
-    'bloqueio',
-  );
-  @override
-  late final GeneratedColumn<int> bloqueio = GeneratedColumn<int>(
-    'bloqueio',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(3),
-  );
-  static const VerificationMeta _saqueMeta = const VerificationMeta('saque');
-  @override
-  late final GeneratedColumn<int> saque = GeneratedColumn<int>(
-    'saque',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(3),
-  );
-  static const VerificationMeta _passeMeta = const VerificationMeta('passe');
-  @override
-  late final GeneratedColumn<int> passe = GeneratedColumn<int>(
-    'passe',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(3),
+    defaultValue: const Constant(''),
   );
   static const VerificationMeta _partidasJogadasMeta = const VerificationMeta(
     'partidasJogadas',
@@ -128,12 +81,8 @@ class $JogadoresTableTable extends JogadoresTable
     id,
     nome,
     genero,
-    isLevantador,
-    ataque,
-    defesa,
-    bloqueio,
-    saque,
-    passe,
+    nivel,
+    papeis,
     partidasJogadas,
   ];
   @override
@@ -167,43 +116,16 @@ class $JogadoresTableTable extends JogadoresTable
     } else if (isInserting) {
       context.missing(_generoMeta);
     }
-    if (data.containsKey('is_levantador')) {
+    if (data.containsKey('nivel')) {
       context.handle(
-        _isLevantadorMeta,
-        isLevantador.isAcceptableOrUnknown(
-          data['is_levantador']!,
-          _isLevantadorMeta,
-        ),
+        _nivelMeta,
+        nivel.isAcceptableOrUnknown(data['nivel']!, _nivelMeta),
       );
     }
-    if (data.containsKey('ataque')) {
+    if (data.containsKey('papeis')) {
       context.handle(
-        _ataqueMeta,
-        ataque.isAcceptableOrUnknown(data['ataque']!, _ataqueMeta),
-      );
-    }
-    if (data.containsKey('defesa')) {
-      context.handle(
-        _defesaMeta,
-        defesa.isAcceptableOrUnknown(data['defesa']!, _defesaMeta),
-      );
-    }
-    if (data.containsKey('bloqueio')) {
-      context.handle(
-        _bloqueioMeta,
-        bloqueio.isAcceptableOrUnknown(data['bloqueio']!, _bloqueioMeta),
-      );
-    }
-    if (data.containsKey('saque')) {
-      context.handle(
-        _saqueMeta,
-        saque.isAcceptableOrUnknown(data['saque']!, _saqueMeta),
-      );
-    }
-    if (data.containsKey('passe')) {
-      context.handle(
-        _passeMeta,
-        passe.isAcceptableOrUnknown(data['passe']!, _passeMeta),
+        _papeisMeta,
+        papeis.isAcceptableOrUnknown(data['papeis']!, _papeisMeta),
       );
     }
     if (data.containsKey('partidas_jogadas')) {
@@ -236,29 +158,13 @@ class $JogadoresTableTable extends JogadoresTable
         DriftSqlType.string,
         data['${effectivePrefix}genero'],
       )!,
-      isLevantador: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}is_levantador'],
+      nivel: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}nivel'],
       )!,
-      ataque: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}ataque'],
-      )!,
-      defesa: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}defesa'],
-      )!,
-      bloqueio: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}bloqueio'],
-      )!,
-      saque: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}saque'],
-      )!,
-      passe: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}passe'],
+      papeis: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}papeis'],
       )!,
       partidasJogadas: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
@@ -277,23 +183,15 @@ class JogadorRow extends DataClass implements Insertable<JogadorRow> {
   final int id;
   final String nome;
   final String genero;
-  final bool isLevantador;
-  final int ataque;
-  final int defesa;
-  final int bloqueio;
-  final int saque;
-  final int passe;
+  final String nivel;
+  final String papeis;
   final int partidasJogadas;
   const JogadorRow({
     required this.id,
     required this.nome,
     required this.genero,
-    required this.isLevantador,
-    required this.ataque,
-    required this.defesa,
-    required this.bloqueio,
-    required this.saque,
-    required this.passe,
+    required this.nivel,
+    required this.papeis,
     required this.partidasJogadas,
   });
   @override
@@ -302,12 +200,8 @@ class JogadorRow extends DataClass implements Insertable<JogadorRow> {
     map['id'] = Variable<int>(id);
     map['nome'] = Variable<String>(nome);
     map['genero'] = Variable<String>(genero);
-    map['is_levantador'] = Variable<bool>(isLevantador);
-    map['ataque'] = Variable<int>(ataque);
-    map['defesa'] = Variable<int>(defesa);
-    map['bloqueio'] = Variable<int>(bloqueio);
-    map['saque'] = Variable<int>(saque);
-    map['passe'] = Variable<int>(passe);
+    map['nivel'] = Variable<String>(nivel);
+    map['papeis'] = Variable<String>(papeis);
     map['partidas_jogadas'] = Variable<int>(partidasJogadas);
     return map;
   }
@@ -317,12 +211,8 @@ class JogadorRow extends DataClass implements Insertable<JogadorRow> {
       id: Value(id),
       nome: Value(nome),
       genero: Value(genero),
-      isLevantador: Value(isLevantador),
-      ataque: Value(ataque),
-      defesa: Value(defesa),
-      bloqueio: Value(bloqueio),
-      saque: Value(saque),
-      passe: Value(passe),
+      nivel: Value(nivel),
+      papeis: Value(papeis),
       partidasJogadas: Value(partidasJogadas),
     );
   }
@@ -336,12 +226,8 @@ class JogadorRow extends DataClass implements Insertable<JogadorRow> {
       id: serializer.fromJson<int>(json['id']),
       nome: serializer.fromJson<String>(json['nome']),
       genero: serializer.fromJson<String>(json['genero']),
-      isLevantador: serializer.fromJson<bool>(json['isLevantador']),
-      ataque: serializer.fromJson<int>(json['ataque']),
-      defesa: serializer.fromJson<int>(json['defesa']),
-      bloqueio: serializer.fromJson<int>(json['bloqueio']),
-      saque: serializer.fromJson<int>(json['saque']),
-      passe: serializer.fromJson<int>(json['passe']),
+      nivel: serializer.fromJson<String>(json['nivel']),
+      papeis: serializer.fromJson<String>(json['papeis']),
       partidasJogadas: serializer.fromJson<int>(json['partidasJogadas']),
     );
   }
@@ -352,12 +238,8 @@ class JogadorRow extends DataClass implements Insertable<JogadorRow> {
       'id': serializer.toJson<int>(id),
       'nome': serializer.toJson<String>(nome),
       'genero': serializer.toJson<String>(genero),
-      'isLevantador': serializer.toJson<bool>(isLevantador),
-      'ataque': serializer.toJson<int>(ataque),
-      'defesa': serializer.toJson<int>(defesa),
-      'bloqueio': serializer.toJson<int>(bloqueio),
-      'saque': serializer.toJson<int>(saque),
-      'passe': serializer.toJson<int>(passe),
+      'nivel': serializer.toJson<String>(nivel),
+      'papeis': serializer.toJson<String>(papeis),
       'partidasJogadas': serializer.toJson<int>(partidasJogadas),
     };
   }
@@ -366,23 +248,15 @@ class JogadorRow extends DataClass implements Insertable<JogadorRow> {
     int? id,
     String? nome,
     String? genero,
-    bool? isLevantador,
-    int? ataque,
-    int? defesa,
-    int? bloqueio,
-    int? saque,
-    int? passe,
+    String? nivel,
+    String? papeis,
     int? partidasJogadas,
   }) => JogadorRow(
     id: id ?? this.id,
     nome: nome ?? this.nome,
     genero: genero ?? this.genero,
-    isLevantador: isLevantador ?? this.isLevantador,
-    ataque: ataque ?? this.ataque,
-    defesa: defesa ?? this.defesa,
-    bloqueio: bloqueio ?? this.bloqueio,
-    saque: saque ?? this.saque,
-    passe: passe ?? this.passe,
+    nivel: nivel ?? this.nivel,
+    papeis: papeis ?? this.papeis,
     partidasJogadas: partidasJogadas ?? this.partidasJogadas,
   );
   JogadorRow copyWithCompanion(JogadoresTableCompanion data) {
@@ -390,14 +264,8 @@ class JogadorRow extends DataClass implements Insertable<JogadorRow> {
       id: data.id.present ? data.id.value : this.id,
       nome: data.nome.present ? data.nome.value : this.nome,
       genero: data.genero.present ? data.genero.value : this.genero,
-      isLevantador: data.isLevantador.present
-          ? data.isLevantador.value
-          : this.isLevantador,
-      ataque: data.ataque.present ? data.ataque.value : this.ataque,
-      defesa: data.defesa.present ? data.defesa.value : this.defesa,
-      bloqueio: data.bloqueio.present ? data.bloqueio.value : this.bloqueio,
-      saque: data.saque.present ? data.saque.value : this.saque,
-      passe: data.passe.present ? data.passe.value : this.passe,
+      nivel: data.nivel.present ? data.nivel.value : this.nivel,
+      papeis: data.papeis.present ? data.papeis.value : this.papeis,
       partidasJogadas: data.partidasJogadas.present
           ? data.partidasJogadas.value
           : this.partidasJogadas,
@@ -410,30 +278,16 @@ class JogadorRow extends DataClass implements Insertable<JogadorRow> {
           ..write('id: $id, ')
           ..write('nome: $nome, ')
           ..write('genero: $genero, ')
-          ..write('isLevantador: $isLevantador, ')
-          ..write('ataque: $ataque, ')
-          ..write('defesa: $defesa, ')
-          ..write('bloqueio: $bloqueio, ')
-          ..write('saque: $saque, ')
-          ..write('passe: $passe, ')
+          ..write('nivel: $nivel, ')
+          ..write('papeis: $papeis, ')
           ..write('partidasJogadas: $partidasJogadas')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
-    id,
-    nome,
-    genero,
-    isLevantador,
-    ataque,
-    defesa,
-    bloqueio,
-    saque,
-    passe,
-    partidasJogadas,
-  );
+  int get hashCode =>
+      Object.hash(id, nome, genero, nivel, papeis, partidasJogadas);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -441,12 +295,8 @@ class JogadorRow extends DataClass implements Insertable<JogadorRow> {
           other.id == this.id &&
           other.nome == this.nome &&
           other.genero == this.genero &&
-          other.isLevantador == this.isLevantador &&
-          other.ataque == this.ataque &&
-          other.defesa == this.defesa &&
-          other.bloqueio == this.bloqueio &&
-          other.saque == this.saque &&
-          other.passe == this.passe &&
+          other.nivel == this.nivel &&
+          other.papeis == this.papeis &&
           other.partidasJogadas == this.partidasJogadas);
 }
 
@@ -454,35 +304,23 @@ class JogadoresTableCompanion extends UpdateCompanion<JogadorRow> {
   final Value<int> id;
   final Value<String> nome;
   final Value<String> genero;
-  final Value<bool> isLevantador;
-  final Value<int> ataque;
-  final Value<int> defesa;
-  final Value<int> bloqueio;
-  final Value<int> saque;
-  final Value<int> passe;
+  final Value<String> nivel;
+  final Value<String> papeis;
   final Value<int> partidasJogadas;
   const JogadoresTableCompanion({
     this.id = const Value.absent(),
     this.nome = const Value.absent(),
     this.genero = const Value.absent(),
-    this.isLevantador = const Value.absent(),
-    this.ataque = const Value.absent(),
-    this.defesa = const Value.absent(),
-    this.bloqueio = const Value.absent(),
-    this.saque = const Value.absent(),
-    this.passe = const Value.absent(),
+    this.nivel = const Value.absent(),
+    this.papeis = const Value.absent(),
     this.partidasJogadas = const Value.absent(),
   });
   JogadoresTableCompanion.insert({
     this.id = const Value.absent(),
     required String nome,
     required String genero,
-    this.isLevantador = const Value.absent(),
-    this.ataque = const Value.absent(),
-    this.defesa = const Value.absent(),
-    this.bloqueio = const Value.absent(),
-    this.saque = const Value.absent(),
-    this.passe = const Value.absent(),
+    this.nivel = const Value.absent(),
+    this.papeis = const Value.absent(),
     this.partidasJogadas = const Value.absent(),
   }) : nome = Value(nome),
        genero = Value(genero);
@@ -490,24 +328,16 @@ class JogadoresTableCompanion extends UpdateCompanion<JogadorRow> {
     Expression<int>? id,
     Expression<String>? nome,
     Expression<String>? genero,
-    Expression<bool>? isLevantador,
-    Expression<int>? ataque,
-    Expression<int>? defesa,
-    Expression<int>? bloqueio,
-    Expression<int>? saque,
-    Expression<int>? passe,
+    Expression<String>? nivel,
+    Expression<String>? papeis,
     Expression<int>? partidasJogadas,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (nome != null) 'nome': nome,
       if (genero != null) 'genero': genero,
-      if (isLevantador != null) 'is_levantador': isLevantador,
-      if (ataque != null) 'ataque': ataque,
-      if (defesa != null) 'defesa': defesa,
-      if (bloqueio != null) 'bloqueio': bloqueio,
-      if (saque != null) 'saque': saque,
-      if (passe != null) 'passe': passe,
+      if (nivel != null) 'nivel': nivel,
+      if (papeis != null) 'papeis': papeis,
       if (partidasJogadas != null) 'partidas_jogadas': partidasJogadas,
     });
   }
@@ -516,24 +346,16 @@ class JogadoresTableCompanion extends UpdateCompanion<JogadorRow> {
     Value<int>? id,
     Value<String>? nome,
     Value<String>? genero,
-    Value<bool>? isLevantador,
-    Value<int>? ataque,
-    Value<int>? defesa,
-    Value<int>? bloqueio,
-    Value<int>? saque,
-    Value<int>? passe,
+    Value<String>? nivel,
+    Value<String>? papeis,
     Value<int>? partidasJogadas,
   }) {
     return JogadoresTableCompanion(
       id: id ?? this.id,
       nome: nome ?? this.nome,
       genero: genero ?? this.genero,
-      isLevantador: isLevantador ?? this.isLevantador,
-      ataque: ataque ?? this.ataque,
-      defesa: defesa ?? this.defesa,
-      bloqueio: bloqueio ?? this.bloqueio,
-      saque: saque ?? this.saque,
-      passe: passe ?? this.passe,
+      nivel: nivel ?? this.nivel,
+      papeis: papeis ?? this.papeis,
       partidasJogadas: partidasJogadas ?? this.partidasJogadas,
     );
   }
@@ -550,23 +372,11 @@ class JogadoresTableCompanion extends UpdateCompanion<JogadorRow> {
     if (genero.present) {
       map['genero'] = Variable<String>(genero.value);
     }
-    if (isLevantador.present) {
-      map['is_levantador'] = Variable<bool>(isLevantador.value);
+    if (nivel.present) {
+      map['nivel'] = Variable<String>(nivel.value);
     }
-    if (ataque.present) {
-      map['ataque'] = Variable<int>(ataque.value);
-    }
-    if (defesa.present) {
-      map['defesa'] = Variable<int>(defesa.value);
-    }
-    if (bloqueio.present) {
-      map['bloqueio'] = Variable<int>(bloqueio.value);
-    }
-    if (saque.present) {
-      map['saque'] = Variable<int>(saque.value);
-    }
-    if (passe.present) {
-      map['passe'] = Variable<int>(passe.value);
+    if (papeis.present) {
+      map['papeis'] = Variable<String>(papeis.value);
     }
     if (partidasJogadas.present) {
       map['partidas_jogadas'] = Variable<int>(partidasJogadas.value);
@@ -580,12 +390,8 @@ class JogadoresTableCompanion extends UpdateCompanion<JogadorRow> {
           ..write('id: $id, ')
           ..write('nome: $nome, ')
           ..write('genero: $genero, ')
-          ..write('isLevantador: $isLevantador, ')
-          ..write('ataque: $ataque, ')
-          ..write('defesa: $defesa, ')
-          ..write('bloqueio: $bloqueio, ')
-          ..write('saque: $saque, ')
-          ..write('passe: $passe, ')
+          ..write('nivel: $nivel, ')
+          ..write('papeis: $papeis, ')
           ..write('partidasJogadas: $partidasJogadas')
           ..write(')'))
         .toString();
@@ -2211,12 +2017,8 @@ typedef $$JogadoresTableTableCreateCompanionBuilder =
       Value<int> id,
       required String nome,
       required String genero,
-      Value<bool> isLevantador,
-      Value<int> ataque,
-      Value<int> defesa,
-      Value<int> bloqueio,
-      Value<int> saque,
-      Value<int> passe,
+      Value<String> nivel,
+      Value<String> papeis,
       Value<int> partidasJogadas,
     });
 typedef $$JogadoresTableTableUpdateCompanionBuilder =
@@ -2224,12 +2026,8 @@ typedef $$JogadoresTableTableUpdateCompanionBuilder =
       Value<int> id,
       Value<String> nome,
       Value<String> genero,
-      Value<bool> isLevantador,
-      Value<int> ataque,
-      Value<int> defesa,
-      Value<int> bloqueio,
-      Value<int> saque,
-      Value<int> passe,
+      Value<String> nivel,
+      Value<String> papeis,
       Value<int> partidasJogadas,
     });
 
@@ -2257,33 +2055,13 @@ class $$JogadoresTableTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<bool> get isLevantador => $composableBuilder(
-    column: $table.isLevantador,
+  ColumnFilters<String> get nivel => $composableBuilder(
+    column: $table.nivel,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get ataque => $composableBuilder(
-    column: $table.ataque,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get defesa => $composableBuilder(
-    column: $table.defesa,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get bloqueio => $composableBuilder(
-    column: $table.bloqueio,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get saque => $composableBuilder(
-    column: $table.saque,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get passe => $composableBuilder(
-    column: $table.passe,
+  ColumnFilters<String> get papeis => $composableBuilder(
+    column: $table.papeis,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2317,33 +2095,13 @@ class $$JogadoresTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<bool> get isLevantador => $composableBuilder(
-    column: $table.isLevantador,
+  ColumnOrderings<String> get nivel => $composableBuilder(
+    column: $table.nivel,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get ataque => $composableBuilder(
-    column: $table.ataque,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get defesa => $composableBuilder(
-    column: $table.defesa,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get bloqueio => $composableBuilder(
-    column: $table.bloqueio,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get saque => $composableBuilder(
-    column: $table.saque,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get passe => $composableBuilder(
-    column: $table.passe,
+  ColumnOrderings<String> get papeis => $composableBuilder(
+    column: $table.papeis,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -2371,25 +2129,11 @@ class $$JogadoresTableTableAnnotationComposer
   GeneratedColumn<String> get genero =>
       $composableBuilder(column: $table.genero, builder: (column) => column);
 
-  GeneratedColumn<bool> get isLevantador => $composableBuilder(
-    column: $table.isLevantador,
-    builder: (column) => column,
-  );
+  GeneratedColumn<String> get nivel =>
+      $composableBuilder(column: $table.nivel, builder: (column) => column);
 
-  GeneratedColumn<int> get ataque =>
-      $composableBuilder(column: $table.ataque, builder: (column) => column);
-
-  GeneratedColumn<int> get defesa =>
-      $composableBuilder(column: $table.defesa, builder: (column) => column);
-
-  GeneratedColumn<int> get bloqueio =>
-      $composableBuilder(column: $table.bloqueio, builder: (column) => column);
-
-  GeneratedColumn<int> get saque =>
-      $composableBuilder(column: $table.saque, builder: (column) => column);
-
-  GeneratedColumn<int> get passe =>
-      $composableBuilder(column: $table.passe, builder: (column) => column);
+  GeneratedColumn<String> get papeis =>
+      $composableBuilder(column: $table.papeis, builder: (column) => column);
 
   GeneratedColumn<int> get partidasJogadas => $composableBuilder(
     column: $table.partidasJogadas,
@@ -2433,23 +2177,15 @@ class $$JogadoresTableTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<String> nome = const Value.absent(),
                 Value<String> genero = const Value.absent(),
-                Value<bool> isLevantador = const Value.absent(),
-                Value<int> ataque = const Value.absent(),
-                Value<int> defesa = const Value.absent(),
-                Value<int> bloqueio = const Value.absent(),
-                Value<int> saque = const Value.absent(),
-                Value<int> passe = const Value.absent(),
+                Value<String> nivel = const Value.absent(),
+                Value<String> papeis = const Value.absent(),
                 Value<int> partidasJogadas = const Value.absent(),
               }) => JogadoresTableCompanion(
                 id: id,
                 nome: nome,
                 genero: genero,
-                isLevantador: isLevantador,
-                ataque: ataque,
-                defesa: defesa,
-                bloqueio: bloqueio,
-                saque: saque,
-                passe: passe,
+                nivel: nivel,
+                papeis: papeis,
                 partidasJogadas: partidasJogadas,
               ),
           createCompanionCallback:
@@ -2457,23 +2193,15 @@ class $$JogadoresTableTableTableManager
                 Value<int> id = const Value.absent(),
                 required String nome,
                 required String genero,
-                Value<bool> isLevantador = const Value.absent(),
-                Value<int> ataque = const Value.absent(),
-                Value<int> defesa = const Value.absent(),
-                Value<int> bloqueio = const Value.absent(),
-                Value<int> saque = const Value.absent(),
-                Value<int> passe = const Value.absent(),
+                Value<String> nivel = const Value.absent(),
+                Value<String> papeis = const Value.absent(),
                 Value<int> partidasJogadas = const Value.absent(),
               }) => JogadoresTableCompanion.insert(
                 id: id,
                 nome: nome,
                 genero: genero,
-                isLevantador: isLevantador,
-                ataque: ataque,
-                defesa: defesa,
-                bloqueio: bloqueio,
-                saque: saque,
-                passe: passe,
+                nivel: nivel,
+                papeis: papeis,
                 partidasJogadas: partidasJogadas,
               ),
           withReferenceMapper: (p0) => p0

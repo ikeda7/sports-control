@@ -285,7 +285,7 @@ class CheckInScreen extends StatelessWidget {
                     fontSize: 15),
               ),
               subtitle: Text(
-                '${jogador.partidasJogadas} partidas  •  Peso ${(jogador.pesoTecnico * 100).round()}%',
+                '${jogador.partidasJogadas} partidas  •  ${jogador.nivel.label}',
                 style: const TextStyle(color: Colors.white38, fontSize: 11),
               ),
               trailing: AnimatedContainer(
