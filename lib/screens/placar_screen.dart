@@ -498,6 +498,38 @@ class PlacarScreen extends StatelessWidget {
   // Confirmar encerramento da partida
   // ---------------------------------------------------------------------------
   void _confirmarEncerramento(BuildContext context, Partida partida) {
+    // Vôlei não tem empate — impede encerrar com placar igual
+    if (partida.placarA == partida.placarB) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF0D1F3C),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+                color: const Color(0xFFFF9800).withValues(alpha: 0.4)),
+          ),
+          title: const Text('Placar empatado',
+              style: TextStyle(color: Colors.white)),
+          content: Text(
+            'Vôlei não tem empate!\n\n'
+            'Placar atual: ${partida.timeANome} ${partida.placarA} × ${partida.placarB} ${partida.timeBNome}\n\n'
+            'Continue jogando até um time vencer.',
+            style: const TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            FilledButton(
+              style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF9800)),
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Continuar jogando'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -510,7 +542,6 @@ class PlacarScreen extends StatelessWidget {
             style: TextStyle(color: Colors.white)),
         content: Text(
           'Placar final: ${partida.timeANome} ${partida.placarA} × ${partida.placarB} ${partida.timeBNome}\n\n'
-          '${partida.placarA == partida.placarB ? 'Empate — vitórias não serão atualizadas.\n\n' : ''}'
           'As partidas jogadas de todos os participantes serão incrementadas.',
           style: const TextStyle(color: Colors.white70),
         ),

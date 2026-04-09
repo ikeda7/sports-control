@@ -458,6 +458,14 @@ class SorteioScreen extends StatelessWidget {
                                     fontSize: 9,
                                     fontWeight: FontWeight.bold)),
                           ),
+                        if (j.genero == Genero.feminino)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: Icon(Icons.female_rounded,
+                                color: const Color(0xFFE91E8C)
+                                    .withValues(alpha: 0.8),
+                                size: 14),
+                          ),
                         Text(
                           '${(j.pesoTecnico * 100).round()}%',
                           style: TextStyle(

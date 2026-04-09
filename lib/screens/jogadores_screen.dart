@@ -605,34 +605,27 @@ class JogadoresScreen extends StatelessWidget {
 
   // ── IMPORTAR LISTA DE NOMES ─────────────────────────────────────────────────
 
-  /// Analisa texto colado (lista do WhatsApp, numerada, ou um nome por linha)
-  /// e extrai nomes legíveis.
-  static List<String> _parsearNomes(String texto) {
-    final resultado = <String>[];
+  /// Extrai nomes de texto colado (WhatsApp, numerada, um por linha).
+  static List<_ImportEntry> _parsearNomes(String texto) {
+    final resultado = <_ImportEntry>[];
     for (var linha in texto.split('\n')) {
-      // Formato WhatsApp: "+55 11 99999-9999 ~ Nome Completo"
       if (linha.contains('~')) {
         linha = linha.substring(linha.indexOf('~') + 1);
       }
-      // Remove número de telefone no início
-      linha = linha.replaceAll(
-          RegExp(r'^\s*[\+\d][\d\s\-\(\)\.]{5,}\s*'), '');
-      // Remove numeração "1." "1)" "1 -" etc.
+      linha = linha.replaceAll(RegExp(r'^\s*[\+\d][\d\s\-\(\)\.]{5,}\s*'), '');
       linha = linha.replaceAll(RegExp(r'^\s*\d+\s*[\.\):\-]\s*'), '');
-      // Mantém letras, espaços, acentos e hífens; remove o resto
       linha = linha
           .replaceAll(RegExp(r"[^a-zA-ZÀ-ÿ\s'\-]"), '')
           .trim()
           .replaceAll(RegExp(r'\s+'), ' ');
-      if (linha.length >= 2) resultado.add(linha);
+      if (linha.length >= 2) resultado.add(_ImportEntry(linha));
     }
     return resultado;
   }
 
   void _mostrarDialogImportar(BuildContext context) {
     final ctrl = TextEditingController();
-    var nomes = <String>[];
-    var generoImport = Genero.masculino;
+    var entradas = <_ImportEntry>[];
 
     showDialog(
       context: context,
@@ -645,21 +638,21 @@ class JogadoresScreen extends StatelessWidget {
           ),
           title: const Text('Importar lista de nomes',
               style: TextStyle(color: Colors.white)),
-          content: SingleChildScrollView(
+          content: SizedBox(
+            width: double.maxFinite,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Cole a lista abaixo (WhatsApp, numerada ou um nome por linha):',
+                  'Cole a lista (WhatsApp, numerada ou um nome por linha):',
                   style: TextStyle(color: Colors.white54, fontSize: 13),
                 ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: ctrl,
-                  maxLines: 8,
-                  style: const TextStyle(
-                      color: Colors.white, fontSize: 13),
+                  maxLines: 6,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
                   decoration: InputDecoration(
                     hintText:
                         '+55 11 99999-9999 ~ João Silva\n1. Maria Santos\nPedro Costa...',
@@ -680,69 +673,77 @@ class JogadoresScreen extends StatelessWidget {
                     fillColor: Colors.white.withValues(alpha: 0.04),
                   ),
                   onChanged: (v) =>
-                      setState(() => nomes = _parsearNomes(v)),
+                      setState(() => entradas = _parsearNomes(v)),
                 ),
-                const SizedBox(height: 14),
-                const Text('Gênero padrão:',
-                    style: TextStyle(color: Colors.white54, fontSize: 13)),
-                const SizedBox(height: 8),
-                SegmentedButton<Genero>(
-                  segments: const [
-                    ButtonSegment(
-                        value: Genero.masculino,
-                        label: Text('Masculino'),
-                        icon: Icon(Icons.male)),
-                    ButtonSegment(
-                        value: Genero.feminino,
-                        label: Text('Feminino'),
-                        icon: Icon(Icons.female)),
-                  ],
-                  selected: {generoImport},
-                  onSelectionChanged: (v) =>
-                      setState(() => generoImport = v.first),
-                  style: ButtonStyle(
-                    backgroundColor:
-                        WidgetStateProperty.resolveWith((states) {
-                      if (states.contains(WidgetState.selected)) {
-                        return const Color(0xFFFF6B35)
-                            .withValues(alpha: 0.3);
-                      }
-                      return Colors.transparent;
-                    }),
-                  ),
-                ),
-                if (nomes.isNotEmpty) ...[
-                  const SizedBox(height: 14),
+                if (entradas.isNotEmpty) ...[
+                  const SizedBox(height: 12),
                   Text(
-                    '${nomes.length} nome${nomes.length != 1 ? 's' : ''} encontrado${nomes.length != 1 ? 's' : ''}:',
+                    '${entradas.length} nome${entradas.length != 1 ? 's' : ''} — toque em ♂/♀ para ajustar:',
                     style: const TextStyle(
                         color: Color(0xFF4CAF50),
                         fontSize: 12,
                         fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    children: nomes
-                        .map((n) => Chip(
-                              label: Text(n,
-                                  style:
-                                      const TextStyle(fontSize: 11)),
-                              backgroundColor: Colors.white
-                                  .withValues(alpha: 0.06),
-                              side: BorderSide(
-                                  color: Colors.white
-                                      .withValues(alpha: 0.15)),
-                              labelStyle: const TextStyle(
-                                  color: Colors.white70),
-                              padding: EdgeInsets.zero,
-                              materialTapTargetSize:
-                                  MaterialTapTargetSize.shrinkWrap,
-                            ))
-                        .toList(),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 220),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: entradas.length,
+                      itemBuilder: (_, i) {
+                        final e = entradas[i];
+                        final isFem = e.genero == Genero.feminino;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 3),
+                          child: Row(
+                            children: [
+                              GestureDetector(
+                                onTap: () => setState(() {
+                                  e.genero = isFem
+                                      ? Genero.masculino
+                                      : Genero.feminino;
+                                }),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: (isFem
+                                            ? const Color(0xFFE91E8C)
+                                            : const Color(0xFF2196F3))
+                                        .withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: (isFem
+                                              ? const Color(0xFFE91E8C)
+                                              : const Color(0xFF2196F3))
+                                          .withValues(alpha: 0.5),
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    isFem
+                                        ? Icons.female_rounded
+                                        : Icons.male_rounded,
+                                    color: isFem
+                                        ? const Color(0xFFE91E8C)
+                                        : const Color(0xFF2196F3),
+                                    size: 16,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(e.nome,
+                                    style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 13)),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Text(
                     'Atributos padrão (3/5). Edite individualmente depois.',
                     style: TextStyle(
@@ -761,23 +762,24 @@ class JogadoresScreen extends StatelessWidget {
             ),
             FilledButton(
               style: FilledButton.styleFrom(
-                  backgroundColor: nomes.isNotEmpty
+                  backgroundColor: entradas.isNotEmpty
                       ? const Color(0xFFFF6B35)
                       : Colors.white.withValues(alpha: 0.1)),
-              onPressed: nomes.isEmpty
+              onPressed: entradas.isEmpty
                   ? null
                   : () async {
-                      final existentes = (jogadoresSignal.value.value ?? [])
-                          .map((j) => j.nome.toLowerCase())
-                          .toSet();
+                      final existentes =
+                          (jogadoresSignal.value.value ?? [])
+                              .map((j) => j.nome.toLowerCase())
+                              .toSet();
                       var importados = 0;
-                      for (final nome in nomes) {
-                        if (existentes.contains(nome.toLowerCase())) {
+                      for (final e in entradas) {
+                        if (existentes.contains(e.nome.toLowerCase())) {
                           continue;
                         }
                         await db.insertJogador(
-                          nome: nome,
-                          genero: generoImport,
+                          nome: e.nome,
+                          genero: e.genero,
                           isLevantador: false,
                           ataque: 3,
                           defesa: 3,
@@ -797,11 +799,9 @@ class JogadoresScreen extends StatelessWidget {
                         ));
                       }
                     },
-              child: Text(
-                nomes.isEmpty
-                    ? 'Importar'
-                    : 'Importar ${nomes.length}',
-              ),
+              child: Text(entradas.isEmpty
+                  ? 'Importar'
+                  : 'Importar ${entradas.length}'),
             ),
           ],
         ),
@@ -880,4 +880,10 @@ class _Atrib {
   final String abrev;
   final IconData icon;
   const _Atrib(this.abrev, this.icon);
+}
+
+class _ImportEntry {
+  String nome;
+  Genero genero = Genero.masculino;
+  _ImportEntry(this.nome);
 }
