@@ -6,6 +6,7 @@ import 'package:signals_flutter/signals_flutter.dart';
 
 import '../db.dart';
 import '../models/jogador.dart';
+import '../models/sessao.dart';
 import '../models/time.dart';
 import '../signals.dart';
 
@@ -24,7 +25,11 @@ Color _corTime(int ordem) => _coresTimes[ordem % _coresTimes.length];
 // ─── Algoritmo de sorteio (N times) ──────────────────────────────────────────
 // Garante: 1 levantador por time (rotaciona por menos jogos), 1 mulher por time.
 // Preenche o restante com snake-draft por pesoTecnico.
-List<List<Jogador>> _sortearTimes(List<Jogador> presentes, int porTime) {
+List<List<Jogador>> _sortearTimes(
+  List<Jogador> presentes,
+  int porTime, {
+  Modalidade modalidade = Modalidade.quadra,
+}) {
   final n = presentes.length ~/ porTime;
   if (n < 2) return [];
   final rng = Random();
@@ -32,26 +37,28 @@ List<List<Jogador>> _sortearTimes(List<Jogador> presentes, int porTime) {
   final times = List.generate(n, (_) => <Jogador>[]);
   final Set<int> alocados = {};
 
-  // 1. Levantadores: sort por partidasJogadas asc → menos jogos têm prioridade
-  final levs = presentes.where((j) => j.isLevantador).toList()
-    ..sort((a, b) => a.partidasJogadas.compareTo(b.partidasJogadas));
-  for (var i = 0; i < n && i < levs.length; i++) {
-    times[i].add(levs[i]);
-    alocados.add(levs[i].id);
-  }
+  if (modalidade == Modalidade.quadra) {
+    // 1. Levantadores: sort por partidasJogadas asc → menos jogos têm prioridade
+    final levs = presentes.where((j) => j.isLevantador).toList()
+      ..sort((a, b) => a.partidasJogadas.compareTo(b.partidasJogadas));
+    for (var i = 0; i < n && i < levs.length; i++) {
+      times[i].add(levs[i]);
+      alocados.add(levs[i].id);
+    }
 
-  // 2. Mulheres: garante ao menos 1 por time (melhores primeiro)
-  final mulheres = presentes
-      .where((j) => !alocados.contains(j.id) && j.genero == Genero.feminino)
-      .toList()
-    ..shuffle(rng)
-    ..sort((a, b) => b.pesoTecnico.compareTo(a.pesoTecnico));
-  for (var i = 0; i < n && mulheres.isNotEmpty; i++) {
-    final jaTem = times[i].any((j) => j.genero == Genero.feminino);
-    if (!jaTem) {
-      final m = mulheres.removeAt(0);
-      times[i].add(m);
-      alocados.add(m.id);
+    // 2. Mulheres: garante ao menos 1 por time (melhores primeiro)
+    final mulheres = presentes
+        .where((j) => !alocados.contains(j.id) && j.genero == Genero.feminino)
+        .toList()
+      ..shuffle(rng)
+      ..sort((a, b) => b.pesoTecnico.compareTo(a.pesoTecnico));
+    for (var i = 0; i < n && mulheres.isNotEmpty; i++) {
+      final jaTem = times[i].any((j) => j.genero == Genero.feminino);
+      if (!jaTem) {
+        final m = mulheres.removeAt(0);
+        times[i].add(m);
+        alocados.add(m.id);
+      }
     }
   }
 
@@ -166,12 +173,16 @@ class SorteioScreen extends StatelessWidget {
     final checkins = checkinsSignal.value.value ?? [];
     final times = timesSignal.value.value ?? [];
     final jogMap = jogadoresMapSignal.value;
-    final porTime = _porTimeSignal.value;
 
     if (sessao == null) {
       return _buildMsg(Icons.play_circle_outline_rounded,
           'Nenhum rachão ativo', 'Inicie o rachão na aba Check-in');
     }
+
+    // Para areia o porTime é fixo na sessão; para quadra o usuário pode ajustar.
+    final isAreia = sessao.modalidade == Modalidade.areia;
+    final porTime =
+        isAreia ? sessao.porTime : _porTimeSignal.value;
 
     if (checkins.isEmpty) {
       return _buildMsg(Icons.how_to_reg_outlined, 'Ninguém fez check-in',
@@ -184,7 +195,7 @@ class SorteioScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildHeader(checkins.length, porTime),
+        _buildHeader(checkins.length, porTime, sessao),
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
@@ -192,7 +203,7 @@ class SorteioScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (times.isEmpty) ...[
-                  _buildBotaoSortear(context, checkins, porTime, sessao.id),
+                  _buildBotaoSortear(context, checkins, porTime, sessao),
                 ] else ...[
                   _buildTimesGrid(context, times, jogMap, bancal, sessao.id),
                   if (bancal.isNotEmpty) ...[
@@ -204,8 +215,7 @@ class SorteioScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   _buildEscala(context, times, jogMap, sessao.id),
                   const SizedBox(height: 16),
-                  _buildBotaoResortear(
-                      context, checkins, porTime, sessao.id),
+                  _buildBotaoResortear(context, checkins, porTime, sessao),
                 ],
               ],
             ),
@@ -216,7 +226,8 @@ class SorteioScreen extends StatelessWidget {
   }
 
   // ── Header ──────────────────────────────────────────────────────────────────
-  Widget _buildHeader(int presentes, int porTime) {
+  Widget _buildHeader(int presentes, int porTime, Sessao sessao) {
+    final isAreia = sessao.modalidade == Modalidade.areia;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
       child: Row(
@@ -225,19 +236,40 @@ class SorteioScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Sorteio',
-                    style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 1.2)),
+                Row(children: [
+                  const Text('Sorteio',
+                      style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 1.2)),
+                  if (isAreia) ...[
+                    const SizedBox(width: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFD700).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: const Color(0xFFFFD700)
+                                .withValues(alpha: 0.4)),
+                      ),
+                      child: Text('🏖️ ${sessao.prefixoTime}s',
+                          style: const TextStyle(
+                              color: Color(0xFFFFD700),
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ]),
                 Text('$presentes no check-in',
                     style: const TextStyle(
                         color: Colors.white54, fontSize: 14)),
               ],
             ),
           ),
-          _buildPorTimeControl(porTime),
+          if (!isAreia) _buildPorTimeControl(porTime),
         ],
       ),
     );
@@ -887,10 +919,11 @@ class SorteioScreen extends StatelessWidget {
     BuildContext context,
     List<Jogador> checkins,
     int porTime,
-    int sessaoId,
+    Sessao sessao,
   ) {
     final nTimes = checkins.length ~/ porTime;
     final pode = nTimes >= 2;
+    final label = sessao.prefixoTime.toLowerCase();
 
     return Column(
       children: [
@@ -903,7 +936,7 @@ class SorteioScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: 16),
             child: Text(
-              'São necessários pelo menos ${porTime * 2} jogadores ($porTime por time) para sortear 2 times.',
+              'São necessários pelo menos ${porTime * 2} jogadores ($porTime por $label) para sortear 2 ${label}s.',
               style: const TextStyle(
                   color: Colors.white38, fontSize: 13),
               textAlign: TextAlign.center,
@@ -913,7 +946,7 @@ class SorteioScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: 16),
             child: Text(
-              '${checkins.length} jogadores → $nTimes times de $porTime',
+              '${checkins.length} jogadores → $nTimes ${label}s de $porTime',
               style: const TextStyle(
                   color: Colors.white54, fontSize: 13),
             ),
@@ -932,7 +965,7 @@ class SorteioScreen extends StatelessWidget {
                 style: TextStyle(
                     fontSize: 16, fontWeight: FontWeight.bold)),
             onPressed: pode
-                ? () => _sortearESalvar(context, checkins, porTime, sessaoId)
+                ? () => _sortearESalvar(context, checkins, porTime, sessao)
                 : null,
           ),
         ),
@@ -946,7 +979,7 @@ class SorteioScreen extends StatelessWidget {
     BuildContext context,
     List<Jogador> checkins,
     int porTime,
-    int sessaoId,
+    Sessao sessao,
   ) {
     return OutlinedButton.icon(
       style: OutlinedButton.styleFrom(
@@ -958,12 +991,12 @@ class SorteioScreen extends StatelessWidget {
       icon: const Icon(Icons.refresh_rounded, size: 18),
       label: const Text('Re-sortear'),
       onPressed: () =>
-          _confirmarResortear(context, checkins, porTime, sessaoId),
+          _confirmarResortear(context, checkins, porTime, sessao),
     );
   }
 
   void _confirmarResortear(BuildContext context, List<Jogador> checkins,
-      int porTime, int sessaoId) {
+      int porTime, Sessao sessao) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -989,7 +1022,7 @@ class SorteioScreen extends StatelessWidget {
                 backgroundColor: const Color(0xFFFF6B35)),
             onPressed: () async {
               Navigator.of(ctx).pop();
-              await _sortearESalvar(context, checkins, porTime, sessaoId);
+              await _sortearESalvar(context, checkins, porTime, sessao);
             },
             child: const Text('Re-sortear'),
           ),
@@ -1245,24 +1278,30 @@ class SorteioScreen extends StatelessWidget {
     BuildContext context,
     List<Jogador> checkins,
     int porTime,
-    int sessaoId,
+    Sessao sessao,
   ) async {
-    final novosTimes = _sortearTimes(checkins, porTime);
-    final semMulher =
-        novosTimes.where((t) => !t.any((j) => j.genero == Genero.feminino)).length;
+    final novosTimes = _sortearTimes(checkins, porTime,
+        modalidade: sessao.modalidade);
     await db.salvarTimes(
-      sessaoId,
+      sessao.id,
       novosTimes.map((t) => t.map((j) => j.id).toList()).toList(),
+      nomePrefix: sessao.prefixoTime,
     );
-    if (semMulher > 0 && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              '$semMulher time${semMulher > 1 ? 's' : ''} sem mulher — jogadoras insuficientes para cobrir todos'),
-          backgroundColor: const Color(0xFFFF9800),
-          duration: const Duration(seconds: 4),
-        ),
-      );
+    // Aviso de times sem mulher só faz sentido no vôlei de quadra
+    if (sessao.modalidade == Modalidade.quadra) {
+      final semMulher = novosTimes
+          .where((t) => !t.any((j) => j.genero == Genero.feminino))
+          .length;
+      if (semMulher > 0 && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                '$semMulher time${semMulher > 1 ? 's' : ''} sem mulher — jogadoras insuficientes para cobrir todos'),
+            backgroundColor: const Color(0xFFFF9800),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     }
   }
 

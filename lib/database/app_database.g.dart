@@ -438,6 +438,30 @@ class $SessoesTableTable extends SessoesTable
     requiredDuringInsert: false,
     defaultValue: const Constant('ativa'),
   );
+  static const VerificationMeta _modalidadeMeta = const VerificationMeta(
+    'modalidade',
+  );
+  @override
+  late final GeneratedColumn<String> modalidade = GeneratedColumn<String>(
+    'modalidade',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('quadra'),
+  );
+  static const VerificationMeta _porTimeMeta = const VerificationMeta(
+    'porTime',
+  );
+  @override
+  late final GeneratedColumn<int> porTime = GeneratedColumn<int>(
+    'por_time',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(6),
+  );
   static const VerificationMeta _rascunhoAIdsMeta = const VerificationMeta(
     'rascunhoAIds',
   );
@@ -467,6 +491,8 @@ class $SessoesTableTable extends SessoesTable
     id,
     criadaEm,
     status,
+    modalidade,
+    porTime,
     rascunhoAIds,
     rascunhoBIds,
   ];
@@ -497,6 +523,18 @@ class $SessoesTableTable extends SessoesTable
       context.handle(
         _statusMeta,
         status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('modalidade')) {
+      context.handle(
+        _modalidadeMeta,
+        modalidade.isAcceptableOrUnknown(data['modalidade']!, _modalidadeMeta),
+      );
+    }
+    if (data.containsKey('por_time')) {
+      context.handle(
+        _porTimeMeta,
+        porTime.isAcceptableOrUnknown(data['por_time']!, _porTimeMeta),
       );
     }
     if (data.containsKey('rascunho_a_ids')) {
@@ -538,6 +576,14 @@ class $SessoesTableTable extends SessoesTable
         DriftSqlType.string,
         data['${effectivePrefix}status'],
       )!,
+      modalidade: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}modalidade'],
+      )!,
+      porTime: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}por_time'],
+      )!,
       rascunhoAIds: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}rascunho_a_ids'],
@@ -559,12 +605,16 @@ class SessaoRow extends DataClass implements Insertable<SessaoRow> {
   final int id;
   final int criadaEm;
   final String status;
+  final String modalidade;
+  final int porTime;
   final String rascunhoAIds;
   final String rascunhoBIds;
   const SessaoRow({
     required this.id,
     required this.criadaEm,
     required this.status,
+    required this.modalidade,
+    required this.porTime,
     required this.rascunhoAIds,
     required this.rascunhoBIds,
   });
@@ -574,6 +624,8 @@ class SessaoRow extends DataClass implements Insertable<SessaoRow> {
     map['id'] = Variable<int>(id);
     map['criada_em'] = Variable<int>(criadaEm);
     map['status'] = Variable<String>(status);
+    map['modalidade'] = Variable<String>(modalidade);
+    map['por_time'] = Variable<int>(porTime);
     map['rascunho_a_ids'] = Variable<String>(rascunhoAIds);
     map['rascunho_b_ids'] = Variable<String>(rascunhoBIds);
     return map;
@@ -584,6 +636,8 @@ class SessaoRow extends DataClass implements Insertable<SessaoRow> {
       id: Value(id),
       criadaEm: Value(criadaEm),
       status: Value(status),
+      modalidade: Value(modalidade),
+      porTime: Value(porTime),
       rascunhoAIds: Value(rascunhoAIds),
       rascunhoBIds: Value(rascunhoBIds),
     );
@@ -598,6 +652,8 @@ class SessaoRow extends DataClass implements Insertable<SessaoRow> {
       id: serializer.fromJson<int>(json['id']),
       criadaEm: serializer.fromJson<int>(json['criadaEm']),
       status: serializer.fromJson<String>(json['status']),
+      modalidade: serializer.fromJson<String>(json['modalidade']),
+      porTime: serializer.fromJson<int>(json['porTime']),
       rascunhoAIds: serializer.fromJson<String>(json['rascunhoAIds']),
       rascunhoBIds: serializer.fromJson<String>(json['rascunhoBIds']),
     );
@@ -609,6 +665,8 @@ class SessaoRow extends DataClass implements Insertable<SessaoRow> {
       'id': serializer.toJson<int>(id),
       'criadaEm': serializer.toJson<int>(criadaEm),
       'status': serializer.toJson<String>(status),
+      'modalidade': serializer.toJson<String>(modalidade),
+      'porTime': serializer.toJson<int>(porTime),
       'rascunhoAIds': serializer.toJson<String>(rascunhoAIds),
       'rascunhoBIds': serializer.toJson<String>(rascunhoBIds),
     };
@@ -618,12 +676,16 @@ class SessaoRow extends DataClass implements Insertable<SessaoRow> {
     int? id,
     int? criadaEm,
     String? status,
+    String? modalidade,
+    int? porTime,
     String? rascunhoAIds,
     String? rascunhoBIds,
   }) => SessaoRow(
     id: id ?? this.id,
     criadaEm: criadaEm ?? this.criadaEm,
     status: status ?? this.status,
+    modalidade: modalidade ?? this.modalidade,
+    porTime: porTime ?? this.porTime,
     rascunhoAIds: rascunhoAIds ?? this.rascunhoAIds,
     rascunhoBIds: rascunhoBIds ?? this.rascunhoBIds,
   );
@@ -632,6 +694,10 @@ class SessaoRow extends DataClass implements Insertable<SessaoRow> {
       id: data.id.present ? data.id.value : this.id,
       criadaEm: data.criadaEm.present ? data.criadaEm.value : this.criadaEm,
       status: data.status.present ? data.status.value : this.status,
+      modalidade: data.modalidade.present
+          ? data.modalidade.value
+          : this.modalidade,
+      porTime: data.porTime.present ? data.porTime.value : this.porTime,
       rascunhoAIds: data.rascunhoAIds.present
           ? data.rascunhoAIds.value
           : this.rascunhoAIds,
@@ -647,6 +713,8 @@ class SessaoRow extends DataClass implements Insertable<SessaoRow> {
           ..write('id: $id, ')
           ..write('criadaEm: $criadaEm, ')
           ..write('status: $status, ')
+          ..write('modalidade: $modalidade, ')
+          ..write('porTime: $porTime, ')
           ..write('rascunhoAIds: $rascunhoAIds, ')
           ..write('rascunhoBIds: $rascunhoBIds')
           ..write(')'))
@@ -654,8 +722,15 @@ class SessaoRow extends DataClass implements Insertable<SessaoRow> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, criadaEm, status, rascunhoAIds, rascunhoBIds);
+  int get hashCode => Object.hash(
+    id,
+    criadaEm,
+    status,
+    modalidade,
+    porTime,
+    rascunhoAIds,
+    rascunhoBIds,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -663,6 +738,8 @@ class SessaoRow extends DataClass implements Insertable<SessaoRow> {
           other.id == this.id &&
           other.criadaEm == this.criadaEm &&
           other.status == this.status &&
+          other.modalidade == this.modalidade &&
+          other.porTime == this.porTime &&
           other.rascunhoAIds == this.rascunhoAIds &&
           other.rascunhoBIds == this.rascunhoBIds);
 }
@@ -671,12 +748,16 @@ class SessoesTableCompanion extends UpdateCompanion<SessaoRow> {
   final Value<int> id;
   final Value<int> criadaEm;
   final Value<String> status;
+  final Value<String> modalidade;
+  final Value<int> porTime;
   final Value<String> rascunhoAIds;
   final Value<String> rascunhoBIds;
   const SessoesTableCompanion({
     this.id = const Value.absent(),
     this.criadaEm = const Value.absent(),
     this.status = const Value.absent(),
+    this.modalidade = const Value.absent(),
+    this.porTime = const Value.absent(),
     this.rascunhoAIds = const Value.absent(),
     this.rascunhoBIds = const Value.absent(),
   });
@@ -684,6 +765,8 @@ class SessoesTableCompanion extends UpdateCompanion<SessaoRow> {
     this.id = const Value.absent(),
     required int criadaEm,
     this.status = const Value.absent(),
+    this.modalidade = const Value.absent(),
+    this.porTime = const Value.absent(),
     this.rascunhoAIds = const Value.absent(),
     this.rascunhoBIds = const Value.absent(),
   }) : criadaEm = Value(criadaEm);
@@ -691,6 +774,8 @@ class SessoesTableCompanion extends UpdateCompanion<SessaoRow> {
     Expression<int>? id,
     Expression<int>? criadaEm,
     Expression<String>? status,
+    Expression<String>? modalidade,
+    Expression<int>? porTime,
     Expression<String>? rascunhoAIds,
     Expression<String>? rascunhoBIds,
   }) {
@@ -698,6 +783,8 @@ class SessoesTableCompanion extends UpdateCompanion<SessaoRow> {
       if (id != null) 'id': id,
       if (criadaEm != null) 'criada_em': criadaEm,
       if (status != null) 'status': status,
+      if (modalidade != null) 'modalidade': modalidade,
+      if (porTime != null) 'por_time': porTime,
       if (rascunhoAIds != null) 'rascunho_a_ids': rascunhoAIds,
       if (rascunhoBIds != null) 'rascunho_b_ids': rascunhoBIds,
     });
@@ -707,6 +794,8 @@ class SessoesTableCompanion extends UpdateCompanion<SessaoRow> {
     Value<int>? id,
     Value<int>? criadaEm,
     Value<String>? status,
+    Value<String>? modalidade,
+    Value<int>? porTime,
     Value<String>? rascunhoAIds,
     Value<String>? rascunhoBIds,
   }) {
@@ -714,6 +803,8 @@ class SessoesTableCompanion extends UpdateCompanion<SessaoRow> {
       id: id ?? this.id,
       criadaEm: criadaEm ?? this.criadaEm,
       status: status ?? this.status,
+      modalidade: modalidade ?? this.modalidade,
+      porTime: porTime ?? this.porTime,
       rascunhoAIds: rascunhoAIds ?? this.rascunhoAIds,
       rascunhoBIds: rascunhoBIds ?? this.rascunhoBIds,
     );
@@ -731,6 +822,12 @@ class SessoesTableCompanion extends UpdateCompanion<SessaoRow> {
     if (status.present) {
       map['status'] = Variable<String>(status.value);
     }
+    if (modalidade.present) {
+      map['modalidade'] = Variable<String>(modalidade.value);
+    }
+    if (porTime.present) {
+      map['por_time'] = Variable<int>(porTime.value);
+    }
     if (rascunhoAIds.present) {
       map['rascunho_a_ids'] = Variable<String>(rascunhoAIds.value);
     }
@@ -746,6 +843,8 @@ class SessoesTableCompanion extends UpdateCompanion<SessaoRow> {
           ..write('id: $id, ')
           ..write('criadaEm: $criadaEm, ')
           ..write('status: $status, ')
+          ..write('modalidade: $modalidade, ')
+          ..write('porTime: $porTime, ')
           ..write('rascunhoAIds: $rascunhoAIds, ')
           ..write('rascunhoBIds: $rascunhoBIds')
           ..write(')'))
@@ -2234,6 +2333,8 @@ typedef $$SessoesTableTableCreateCompanionBuilder =
       Value<int> id,
       required int criadaEm,
       Value<String> status,
+      Value<String> modalidade,
+      Value<int> porTime,
       Value<String> rascunhoAIds,
       Value<String> rascunhoBIds,
     });
@@ -2242,6 +2343,8 @@ typedef $$SessoesTableTableUpdateCompanionBuilder =
       Value<int> id,
       Value<int> criadaEm,
       Value<String> status,
+      Value<String> modalidade,
+      Value<int> porTime,
       Value<String> rascunhoAIds,
       Value<String> rascunhoBIds,
     });
@@ -2267,6 +2370,16 @@ class $$SessoesTableTableFilterComposer
 
   ColumnFilters<String> get status => $composableBuilder(
     column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get modalidade => $composableBuilder(
+    column: $table.modalidade,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get porTime => $composableBuilder(
+    column: $table.porTime,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2305,6 +2418,16 @@ class $$SessoesTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get modalidade => $composableBuilder(
+    column: $table.modalidade,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get porTime => $composableBuilder(
+    column: $table.porTime,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get rascunhoAIds => $composableBuilder(
     column: $table.rascunhoAIds,
     builder: (column) => ColumnOrderings(column),
@@ -2333,6 +2456,14 @@ class $$SessoesTableTableAnnotationComposer
 
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get modalidade => $composableBuilder(
+    column: $table.modalidade,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get porTime =>
+      $composableBuilder(column: $table.porTime, builder: (column) => column);
 
   GeneratedColumn<String> get rascunhoAIds => $composableBuilder(
     column: $table.rascunhoAIds,
@@ -2379,12 +2510,16 @@ class $$SessoesTableTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<int> criadaEm = const Value.absent(),
                 Value<String> status = const Value.absent(),
+                Value<String> modalidade = const Value.absent(),
+                Value<int> porTime = const Value.absent(),
                 Value<String> rascunhoAIds = const Value.absent(),
                 Value<String> rascunhoBIds = const Value.absent(),
               }) => SessoesTableCompanion(
                 id: id,
                 criadaEm: criadaEm,
                 status: status,
+                modalidade: modalidade,
+                porTime: porTime,
                 rascunhoAIds: rascunhoAIds,
                 rascunhoBIds: rascunhoBIds,
               ),
@@ -2393,12 +2528,16 @@ class $$SessoesTableTableTableManager
                 Value<int> id = const Value.absent(),
                 required int criadaEm,
                 Value<String> status = const Value.absent(),
+                Value<String> modalidade = const Value.absent(),
+                Value<int> porTime = const Value.absent(),
                 Value<String> rascunhoAIds = const Value.absent(),
                 Value<String> rascunhoBIds = const Value.absent(),
               }) => SessoesTableCompanion.insert(
                 id: id,
                 criadaEm: criadaEm,
                 status: status,
+                modalidade: modalidade,
+                porTime: porTime,
                 rascunhoAIds: rascunhoAIds,
                 rascunhoBIds: rascunhoBIds,
               ),
