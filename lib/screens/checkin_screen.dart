@@ -5,6 +5,7 @@ import 'package:signals_flutter/signals_flutter.dart';
 
 import '../db.dart';
 import '../models/jogador.dart';
+import '../models/sessao.dart';
 import '../signals.dart';
 
 class CheckInScreen extends StatelessWidget {
@@ -34,7 +35,7 @@ class CheckInScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildHeader(context, sessao.criadaEm, sessao.id),
+        _buildHeader(context, sessao),
         Expanded(child: _buildLista(context, sessao.id)),
       ],
     );
@@ -72,9 +73,7 @@ class CheckInScreen extends StatelessWidget {
             label: const Text('Iniciar Rachão',
                 style:
                     TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            onPressed: () async {
-              await db.criarSessaoComCheckIns();
-            },
+            onPressed: () => _dialogIniciarRachao(context),
           ),
         ],
       ),
@@ -84,8 +83,9 @@ class CheckInScreen extends StatelessWidget {
   // ---------------------------------------------------------------------------
   // Header com data, botões todos/nenhum e botão de encerrar
   // ---------------------------------------------------------------------------
-  Widget _buildHeader(BuildContext context, DateTime data, int sessaoId) {
-    final dataFmt = _fmtData(data);
+  Widget _buildHeader(BuildContext context, Sessao sessao) {
+    final dataFmt = _fmtData(sessao.criadaEm);
+    final sessaoId = sessao.id;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 16, 4),
       child: Column(
@@ -97,12 +97,18 @@ class CheckInScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Check-in',
-                        style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: 1.2)),
+                    Row(
+                      children: [
+                        const Text('Check-in',
+                            style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                letterSpacing: 1.2)),
+                        const SizedBox(width: 10),
+                        _buildModalidadeBadge(sessao),
+                      ],
+                    ),
                     Watch((ctx) {
                       final presentes = todosComStatusSignal.value.value
                               ?.where((j) => j.checkedIn)
@@ -311,6 +317,221 @@ class CheckInScreen extends StatelessWidget {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Badge de modalidade
+  // ---------------------------------------------------------------------------
+  Widget _buildModalidadeBadge(Sessao sessao) {
+    final isAreia = sessao.modalidade == Modalidade.areia;
+    final cor = isAreia ? const Color(0xFFFFD700) : const Color(0xFF00BCD4);
+    final label = isAreia
+        ? '🏖️ ${sessao.prefixoTime}s'
+        : '🏐 Quadra';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: cor.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: cor.withValues(alpha: 0.4)),
+      ),
+      child: Text(label,
+          style: TextStyle(
+              color: cor, fontSize: 11, fontWeight: FontWeight.bold)),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Dialog para iniciar rachão (escolha de modalidade)
+  // ---------------------------------------------------------------------------
+  void _dialogIniciarRachao(BuildContext context) {
+    var modalidade = Modalidade.quadra;
+    var porTime = 6;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          backgroundColor: const Color(0xFF0D1F3C),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+          ),
+          title: const Text('Iniciar Rachão',
+              style: TextStyle(color: Colors.white)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Modalidade',
+                  style: TextStyle(color: Colors.white54, fontSize: 13)),
+              const SizedBox(height: 10),
+              Row(
+                children: Modalidade.values.map((m) {
+                  final sel = modalidade == m;
+                  final cor = m == Modalidade.areia
+                      ? const Color(0xFFFFD700)
+                      : const Color(0xFF00BCD4);
+                  return Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: GestureDetector(
+                        onTap: () => setState(() {
+                          modalidade = m;
+                          porTime = m == Modalidade.areia ? 2 : 6;
+                        }),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          decoration: BoxDecoration(
+                            color: sel
+                                ? cor.withValues(alpha: 0.18)
+                                : Colors.white.withValues(alpha: 0.04),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: sel
+                                  ? cor
+                                  : Colors.white.withValues(alpha: 0.12),
+                              width: sel ? 1.5 : 1,
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              Text(m.emoji,
+                                  style: const TextStyle(fontSize: 22)),
+                              const SizedBox(height: 4),
+                              Text(m.label,
+                                  style: TextStyle(
+                                      color: sel ? cor : Colors.white54,
+                                      fontSize: 13,
+                                      fontWeight: sel
+                                          ? FontWeight.bold
+                                          : FontWeight.normal)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+              if (modalidade == Modalidade.areia) ...[
+                const SizedBox(height: 20),
+                const Text('Formato',
+                    style: TextStyle(color: Colors.white54, fontSize: 13)),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    _formatoBtn('Duplas', 2, porTime,
+                        (v) => setState(() => porTime = v)),
+                    const SizedBox(width: 10),
+                    _formatoBtn('Trios', 3, porTime,
+                        (v) => setState(() => porTime = v)),
+                  ],
+                ),
+              ] else ...[
+                const SizedBox(height: 20),
+                const Text('Jogadores por time',
+                    style: TextStyle(color: Colors.white54, fontSize: 13)),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        if (porTime > 2) setState(() => porTime--);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.15)),
+                        ),
+                        child: const Icon(Icons.remove,
+                            color: Colors.white54, size: 18),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Text('$porTime',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold)),
+                    ),
+                    GestureDetector(
+                      onTap: () => setState(() => porTime++),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.15)),
+                        ),
+                        child: const Icon(Icons.add,
+                            color: Colors.white54, size: 18),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancelar',
+                  style: TextStyle(color: Colors.white38)),
+            ),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF6B35)),
+              icon: const Icon(Icons.play_arrow_rounded),
+              label: const Text('Iniciar'),
+              onPressed: () async {
+                await db.criarSessaoComCheckIns(
+                    modalidade: modalidade, porTime: porTime);
+                if (ctx.mounted) Navigator.of(ctx).pop();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _formatoBtn(
+      String label, int value, int atual, void Function(int) onTap) {
+    final sel = atual == value;
+    const cor = Color(0xFFFFD700);
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => onTap(value),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: sel
+                ? cor.withValues(alpha: 0.15)
+                : Colors.white.withValues(alpha: 0.04),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: sel ? cor : Colors.white.withValues(alpha: 0.12),
+              width: sel ? 1.5 : 1,
+            ),
+          ),
+          child: Text(label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: sel ? cor : Colors.white38,
+                  fontSize: 14,
+                  fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
         ),
       ),
     );
