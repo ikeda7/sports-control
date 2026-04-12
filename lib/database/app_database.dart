@@ -1,9 +1,6 @@
-import 'dart:io';
-
 import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
+
+import 'connection_native.dart' if (dart.library.html) 'connection_web.dart';
 
 import '../models/jogador.dart';
 import '../models/sessao.dart';
@@ -118,7 +115,7 @@ class TimesTable extends Table {
 @DriftDatabase(
     tables: [JogadoresTable, SessoesTable, CheckInsTable, PartidasTable, TimesTable])
 class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(_openConnection());
+  AppDatabase() : super(openConnection());
 
   @override
   int get schemaVersion => 8;
@@ -663,14 +660,3 @@ class AppDatabase extends _$AppDatabase {
   }
 }
 
-// =============================================================================
-// CONEXÃO
-// =============================================================================
-
-LazyDatabase _openConnection() {
-  return LazyDatabase(() async {
-    final dir = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dir.path, 'sportscontrol.sqlite'));
-    return NativeDatabase.createInBackground(file);
-  });
-}

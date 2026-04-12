@@ -24,12 +24,26 @@ class MainScreen extends StatelessWidget {
     // Watch observa tabIndexSignal e reconstrói apenas o Scaffold quando muda.
     return Watch((context) {
       final idx = tabIndexSignal.value;
-      return Scaffold(
-        // IndexedStack mantém todas as telas na memória (estado preservado ao trocar aba).
-        // Equivalente ao RouterOutlet com keepAlive no Angular.
-        body: IndexedStack(index: idx, children: _telas),
-        bottomNavigationBar: _buildNavBar(idx),
-      );
+      // Em telas largas (desktop/web), centraliza e limita a 480px
+      return LayoutBuilder(builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 600;
+        Widget scaffold = Scaffold(
+          // IndexedStack mantém todas as telas na memória (estado preservado ao trocar aba).
+          // Equivalente ao RouterOutlet com keepAlive no Angular.
+          body: IndexedStack(index: idx, children: _telas),
+          bottomNavigationBar: _buildNavBar(idx),
+        );
+        if (!isWide) return scaffold;
+        return Scaffold(
+          backgroundColor: const Color(0xFF070B18),
+          body: Center(
+            child: SizedBox(
+              width: 480,
+              child: scaffold,
+            ),
+          ),
+        );
+      });
     });
   }
 
