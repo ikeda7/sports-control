@@ -2,7 +2,7 @@ name: Deploy Web → Vercel
 
 on:
   push:
-    branches: [feature/web-deploy, master]
+    branches: [master]
 
 jobs:
   deploy:
