@@ -1,9 +1,6 @@
-import 'dart:io';
-
 import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
+
+import 'connection_native.dart' if (dart.library.html) 'connection_web.dart';
 
 import '../models/jogador.dart';
 import '../models/sessao.dart';
@@ -45,6 +42,11 @@ class SessoesTable extends Table {
   IntColumn get criadaEm => integer()();
   // 'ativa' | 'encerrada'
   TextColumn get status => text().withDefault(const Constant('ativa'))();
+  // Modalidade: 'quadra' | 'areia'
+  TextColumn get modalidade =>
+      text().withDefault(const Constant('quadra'))();
+  // Jogadores por time (quadra=6, duplas=2, trios=3)
+  IntColumn get porTime => integer().withDefault(const Constant(6))();
   // Mantidos por compatibilidade; substituídos pela TimesTable
   TextColumn get rascunhoAIds =>
       text().withDefault(const Constant(''))();
@@ -113,10 +115,10 @@ class TimesTable extends Table {
 @DriftDatabase(
     tables: [JogadoresTable, SessoesTable, CheckInsTable, PartidasTable, TimesTable])
 class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(_openConnection());
+  AppDatabase() : super(openConnection());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -182,6 +184,15 @@ class AppDatabase extends _$AppDatabase {
             // Migra levantadores antigos para o papel correspondente
             await customStatement(
               "UPDATE jogadores SET papeis = 'levantador' WHERE is_levantador = 1",
+            );
+          }
+          if (from < 8) {
+            // v7→v8: modalidade e porTime na sessão
+            await customStatement(
+              "ALTER TABLE sessoes ADD COLUMN modalidade TEXT NOT NULL DEFAULT 'quadra'",
+            );
+            await customStatement(
+              'ALTER TABLE sessoes ADD COLUMN por_time INTEGER NOT NULL DEFAULT 6',
             );
           }
         },
@@ -272,18 +283,26 @@ class AppDatabase extends _$AppDatabase {
     return row != null ? _sessaoRowToDomain(row) : null;
   }
 
-  Future<int> criarSessao() {
+  Future<int> criarSessao({
+    Modalidade modalidade = Modalidade.quadra,
+    int porTime = 6,
+  }) {
     return into(sessoesTable).insert(
       SessoesTableCompanion.insert(
         criadaEm: DateTime.now().millisecondsSinceEpoch,
+        modalidade: Value(modalidade.name),
+        porTime: Value(porTime),
       ),
     );
   }
 
   /// Cria uma sessão e faz check-in automático de todos os jogadores.
-  Future<void> criarSessaoComCheckIns() async {
+  Future<void> criarSessaoComCheckIns({
+    Modalidade modalidade = Modalidade.quadra,
+    int porTime = 6,
+  }) async {
     await transaction(() async {
-      final sessaoId = await criarSessao();
+      final sessaoId = await criarSessao(modalidade: modalidade, porTime: porTime);
       final jogadores = await select(jogadoresTable).get();
       for (final j in jogadores) {
         await into(checkInsTable).insert(
@@ -417,7 +436,11 @@ class AppDatabase extends _$AppDatabase {
   }
 
   /// Salva os times do sorteio: apaga os anteriores e insere os novos.
-  Future<void> salvarTimes(int sessaoId, List<List<int>> timesIds) async {
+  Future<void> salvarTimes(
+    int sessaoId,
+    List<List<int>> timesIds, {
+    String nomePrefix = 'Time',
+  }) async {
     await transaction(() async {
       await (delete(timesTable)
             ..where((t) => t.sessaoId.equals(sessaoId)))
@@ -426,7 +449,7 @@ class AppDatabase extends _$AppDatabase {
         await into(timesTable).insert(
           TimesTableCompanion.insert(
             sessaoId: sessaoId,
-            nome: 'Time ${i + 1}',
+            nome: '$nomePrefix ${i + 1}',
             jogadorIds: _serializeIds(timesIds[i]),
             ordem: i,
           ),
@@ -594,6 +617,8 @@ class AppDatabase extends _$AppDatabase {
         id: row.id,
         criadaEm: DateTime.fromMillisecondsSinceEpoch(row.criadaEm),
         ativa: row.status == 'ativa',
+        modalidade: Modalidade.fromString(row.modalidade),
+        porTime: row.porTime,
         rascunhoAIds: _deserializeIds(row.rascunhoAIds),
         rascunhoBIds: _deserializeIds(row.rascunhoBIds),
       );
@@ -636,14 +661,3 @@ class AppDatabase extends _$AppDatabase {
   }
 }
 
-// =============================================================================
-// CONEXÃO
-// =============================================================================
-
-LazyDatabase _openConnection() {
-  return LazyDatabase(() async {
-    final dir = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dir.path, 'sportscontrol.sqlite'));
-    return NativeDatabase.createInBackground(file);
-  });
-}

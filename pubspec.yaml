@@ -19,6 +19,9 @@ dependencies:
   # Bundla o SQLite nativo para Windows, Android, iOS, etc.
   sqlite3_flutter_libs: ^0.6.0
 
+  # SQLite para web (WASM) — requerido pelo drift/wasm.dart
+  sqlite3: ^3.3.0
+
   # Signals reativos — idêntico aos Signals do Angular 17+
   signals_flutter: ^6.3.0
 
