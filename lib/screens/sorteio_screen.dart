@@ -22,47 +22,54 @@ const _coresTimes = [
 Color _corTime(int ordem) => _coresTimes[ordem % _coresTimes.length];
 
 // ─── Algoritmo de sorteio (N times) ──────────────────────────────────────────
-// Garante: 1 levantador por time (rotaciona por menos jogos), 1 mulher por time.
-// Preenche o restante com snake-draft por pesoTecnico.
+// Regra de Ocupação Total: Não deixa banco (n = ceil(presentes / porTime))
+// Criação de Vagas Dinâmicas: Preenche com emprestados nos times incompletos
+// Retorno: Lista onde cada time tem exatamente `porTime` instâncias de Jogador.
 List<List<Jogador>> _sortearTimes(List<Jogador> presentes, int porTime) {
-  final n = presentes.length ~/ porTime;
+  final n = (presentes.length / porTime).ceil();
   if (n < 2) return [];
   final rng = Random();
 
-  final times = List.generate(n, (_) => <Jogador>[]);
+  final timesFixos = List.generate(n, (_) => <Jogador>[]);
   final Set<int> alocados = {};
 
-  // 1. Levantadores: sort por partidasJogadas asc → menos jogos têm prioridade
+  final int timesCompletosNum = presentes.length ~/ porTime;
+  final int resto = presentes.length % porTime;
+
+  List<int> capacidade = List.generate(n, (i) => i < timesCompletosNum ? porTime : resto);
+  if (resto == 0) capacidade = List.generate(n, (_) => porTime);
+
+  // 1. Levantadores: menos jogos têm prioridade
   final levs = presentes.where((j) => j.isLevantador).toList()
     ..sort((a, b) => a.partidasJogadas.compareTo(b.partidasJogadas));
   for (var i = 0; i < n && i < levs.length; i++) {
-    times[i].add(levs[i]);
+    timesFixos[i].add(levs[i]);
     alocados.add(levs[i].id);
   }
 
-  // 2. Mulheres: garante ao menos 1 por time (melhores primeiro)
+  // 2. Mulheres: garante ao menos 1 por time se houver espaço
   final mulheres = presentes
       .where((j) => !alocados.contains(j.id) && j.genero == Genero.feminino)
       .toList()
     ..shuffle(rng)
     ..sort((a, b) => b.pesoTecnico.compareTo(a.pesoTecnico));
   for (var i = 0; i < n && mulheres.isNotEmpty; i++) {
-    final jaTem = times[i].any((j) => j.genero == Genero.feminino);
-    if (!jaTem) {
+    final jaTem = timesFixos[i].any((j) => j.genero == Genero.feminino);
+    if (!jaTem && timesFixos[i].length < capacidade[i]) {
       final m = mulheres.removeAt(0);
-      times[i].add(m);
+      timesFixos[i].add(m);
       alocados.add(m.id);
     }
   }
 
-  // 3. Restantes → snake-draft
+  // 3. Restantes → snake-draft respeitando a capacidade fixa
   final restantes = presentes
       .where((j) => !alocados.contains(j.id))
       .toList()
     ..shuffle(rng)
     ..sort((a, b) => b.pesoTecnico.compareTo(a.pesoTecnico));
 
-  final slots = List.generate(n, (i) => porTime - times[i].length);
+  final slots = List.generate(n, (i) => capacidade[i] - timesFixos[i].length);
   final fillOrder = <int>[];
   var fwd = true;
   while (fillOrder.length < restantes.length) {
@@ -82,10 +89,45 @@ List<List<Jogador>> _sortearTimes(List<Jogador> presentes, int porTime) {
   }
 
   for (var i = 0; i < restantes.length && i < fillOrder.length; i++) {
-    times[fillOrder[i]].add(restantes[i]);
+    timesFixos[fillOrder[i]].add(restantes[i]);
   }
 
-  return times;
+  // 4. Criação Dinâmica Das Vagas Completas (Retorna sempre 6)
+  final timesCompletos = <List<Jogador>>[];
+  for (int i = 0; i < n; i++) {
+    final fixos = timesFixos[i];
+    final faltam = porTime - fixos.length;
+    final completos = List<Jogador>.from(fixos);
+
+    if (faltam > 0) {
+      final candidatos = timesFixos.asMap().entries
+          .where((e) => e.key != i)
+          .expand((e) => e.value)
+          .toList();
+
+      candidatos.sort((a, b) {
+        int cmp = a.partidasJogadas.compareTo(b.partidasJogadas);
+        if (cmp == 0) return (a.id.hashCode ^ i.hashCode).compareTo(b.id.hashCode ^ i.hashCode);
+        return cmp;
+      });
+
+      if (!fixos.any((j) => j.isLevantador)) {
+        final levIndex = candidatos.indexWhere((j) => j.isLevantador);
+        if (levIndex != -1) {
+          final selecionado = candidatos.removeAt(levIndex);
+          completos.add(selecionado.copyWith(isEmprestado: true));
+        }
+      }
+
+      while (completos.length < porTime && candidatos.isNotEmpty) {
+        final selecionado = candidatos.removeAt(0);
+        completos.add(selecionado.copyWith(isEmprestado: true));
+      }
+    }
+    timesCompletos.add(completos);
+  }
+
+  return timesCompletos;
 }
 
 // ─── Geração da escala round-robin ───────────────────────────────────────────
@@ -136,6 +178,63 @@ List<(int, int)> _gerarEscala(int n) {
   }
   if (espera.length >= 2) return (espera[0], espera[1]);
   return null;
+}
+
+// ─── Empréstimos Dinâmicos ───────────────────────────────────────────────────
+List<Jogador> _calcularEmprestados({
+  required Time time,
+  required int porTime,
+  required List<Time> todosTimes,
+  required Map<int, Jogador> jogMap,
+  Time? oponente,
+}) {
+  final faltam = porTime - time.jogadorIds.length;
+  if (faltam <= 0) return [];
+
+  // Exclui o próprio time e o oponente (se houver) para evitar conflitos!
+  final timesLivres = todosTimes
+      .where((t) => t.id != time.id && t.id != oponente?.id)
+      .toList();
+      
+  final candidatos = timesLivres
+      .expand((t) => t.jogadorIds.map((id) => jogMap[id]))
+      .whereType<Jogador>()
+      .toList();
+
+  // Prioriza jogadores com menos partidas jogadas para rodar o banco imaginário de forma justa
+  // Usa um hash baseado nos IDs para ser "aleatório" porém determinístico (evita que a tela pisque a cada frame)
+  candidatos.sort((a, b) {
+    int cmp = a.partidasJogadas.compareTo(b.partidasJogadas);
+    if (cmp == 0) {
+      final hashA = a.id.hashCode ^ time.id.hashCode ^ (oponente?.id.hashCode ?? 0);
+      final hashB = b.id.hashCode ^ time.id.hashCode ^ (oponente?.id.hashCode ?? 0);
+      return hashA.compareTo(hashB);
+    }
+    return cmp;
+  });
+
+  final emprestados = <Jogador>[];
+
+  // 1. REQUISITO ESTRITO: O time de destino precisa OBRIGATORIAMENTE de um levantador?
+  final temLevantadorOriginal = time.jogadorIds
+      .map((id) => jogMap[id])
+      .whereType<Jogador>()
+      .any((j) => j.isLevantador);
+
+  if (!temLevantadorOriginal) {
+    // Busca o primeiro candidato livre que seja Levantador
+    final levIndex = candidatos.indexWhere((j) => j.isLevantador);
+    if (levIndex != -1) {
+      emprestados.add(candidatos.removeAt(levIndex));
+    }
+  }
+
+  // 2. Preenche o que sobrou
+  while (emprestados.length < faltam && candidatos.isNotEmpty) {
+    emprestados.add(candidatos.removeAt(0));
+  }
+
+  return emprestados;
 }
 
 // ─── Signal local ─────────────────────────────────────────────────────────────
@@ -341,10 +440,20 @@ class SorteioScreen extends StatelessWidget {
     int sessaoId,
   ) {
     final cor = _corTime(time.ordem);
-    final jogadores = time.jogadorIds
+    final jogadoresOriginais = time.jogadorIds
         .map((id) => jogMap[id])
         .whereType<Jogador>()
         .toList();
+
+    final todosTimes = timesSignal.value.value ?? [];
+    final emprestados = _calcularEmprestados(
+      time: time,
+      porTime: _porTimeSignal.value,
+      todosTimes: todosTimes,
+      jogMap: jogMap,
+    );
+
+    final todosJogadores = [...jogadoresOriginais, ...emprestados];
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: BackdropFilter(
@@ -380,7 +489,7 @@ class SorteioScreen extends StatelessWidget {
                     ],
                     const Spacer(),
                     Text(
-                      _resumoNivel(jogadores),
+                      _resumoNivel(todosJogadores),
                       style: TextStyle(
                           color: cor.withValues(alpha: 0.6),
                           fontSize: 11),
@@ -389,7 +498,7 @@ class SorteioScreen extends StatelessWidget {
                     // Botão substituição — sempre visível
                     GestureDetector(
                       onTap: () => _dialogSubstituir(
-                          context, time, jogadores, bancal, sessaoId),
+                          context, time, jogadoresOriginais, bancal, sessaoId),
                       child: Container(
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
@@ -409,28 +518,52 @@ class SorteioScreen extends StatelessWidget {
                 ),
               ),
               // Jogadores
-              ...jogadores.map((j) => Padding(
+              ...todosJogadores.map((j) {
+                final isEmprestado = emprestados.any((e) => e.id == j.id);
+                return Padding(
                     padding:
                         const EdgeInsets.fromLTRB(16, 10, 16, 2),
                     child: Row(
                       children: [
                         CircleAvatar(
                           radius: 14,
-                          backgroundColor:
-                              cor.withValues(alpha: 0.2),
+                          backgroundColor: isEmprestado 
+                              ? Colors.white.withValues(alpha: 0.1) 
+                              : cor.withValues(alpha: 0.2),
                           child: Text(j.nome[0].toUpperCase(),
                               style: TextStyle(
-                                  color: cor,
+                                  color: isEmprestado ? Colors.white54 : cor,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12)),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: Text(j.nome,
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 14)),
+                          child: Row(
+                            children: [
+                              Flexible(
+                                child: Text(j.nome,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                        color: isEmprestado ? Colors.white70 : Colors.white,
+                                        fontWeight: isEmprestado ? FontWeight.w400 : FontWeight.w500,
+                                        fontStyle: isEmprestado ? FontStyle.italic : FontStyle.normal,
+                                        fontSize: 14)),
+                              ),
+                              if (isEmprestado) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                                  ),
+                                  child: const Text('EMP',
+                                    style: TextStyle(color: Colors.white70, fontSize: 8, fontWeight: FontWeight.bold)),
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
                         if (j.isLevantador)
                           Container(
@@ -469,7 +602,8 @@ class SorteioScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-                  )),
+                  );
+              }),
               const SizedBox(height: 12),
             ],
           ),
@@ -1230,10 +1364,33 @@ class SorteioScreen extends StatelessWidget {
       }
       return;
     }
+    final porTime = _porTimeSignal.value;
+    final times = timesSignal.value.value ?? [];
+    final jogMap = jogadoresMapSignal.value;
+
+    final emprestadosA = _calcularEmprestados(
+      time: tA,
+      porTime: porTime,
+      todosTimes: times,
+      jogMap: jogMap,
+      oponente: tB,
+    );
+
+    final emprestadosB = _calcularEmprestados(
+      time: tB,
+      porTime: porTime,
+      todosTimes: times,
+      jogMap: jogMap,
+      oponente: tA,
+    );
+
+    final idsA = [...tA.jogadorIds, ...emprestadosA.map((j) => j.id)];
+    final idsB = [...tB.jogadorIds, ...emprestadosB.map((j) => j.id)];
+
     await db.criarPartida(
       sessaoId: sessaoId,
-      timeAIds: tA.jogadorIds,
-      timeBIds: tB.jogadorIds,
+      timeAIds: idsA,
+      timeBIds: idsB,
       timeANome: tA.nome,
       timeBNome: tB.nome,
     );
@@ -1252,7 +1409,7 @@ class SorteioScreen extends StatelessWidget {
         novosTimes.where((t) => !t.any((j) => j.genero == Genero.feminino)).length;
     await db.salvarTimes(
       sessaoId,
-      novosTimes.map((t) => t.map((j) => j.id).toList()).toList(),
+      novosTimes.map((t) => t.where((j) => !j.isEmprestado).map((j) => j.id).toList()).toList(),
     );
     if (semMulher > 0 && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1263,6 +1420,59 @@ class SorteioScreen extends StatelessWidget {
           duration: const Duration(seconds: 4),
         ),
       );
+    }
+
+    if (context.mounted) {
+      final tempTimes = List.generate(novosTimes.length, (i) => Time(
+         id: i, sessaoId: sessaoId, nome: 'Time ${i+1}', jogadorIds: novosTimes[i].where((j) => !j.isEmprestado).map((j)=>j.id).toList(), ordem: i
+      ));
+      final jogMap = { for (final j in checkins) j.id: j };
+
+      final logs = <String>[];
+      for (int i = 0; i < tempTimes.length; i++) {
+         final time = tempTimes[i];
+         final empBase = _calcularEmprestados(time: time, porTime: porTime, todosTimes: tempTimes, jogMap: jogMap);
+         if (empBase.isNotEmpty) {
+            logs.add('🏐 ${time.nome} está incompleto.\n   ▸ Solução inicial: pegou ${empBase.map((j)=>j.nome).join(', ')}');
+
+            for (int j = 0; j < tempTimes.length; j++) {
+               if (i == j) continue;
+               final op = tempTimes[j];
+               final empOp = _calcularEmprestados(time: time, porTime: porTime, todosTimes: tempTimes, jogMap: jogMap, oponente: op);
+               
+               final saiu = empBase.where((e) => !empOp.any((o) => o.id == e.id)).toList();
+               final entrou = empOp.where((e) => !empBase.any((o) => o.id == e.id)).toList();
+
+               if (saiu.isNotEmpty) {
+                  logs.add('   ⚠️ Quando jogar contra o ${op.nome}:\n       Volta original: ${saiu.map((j)=>j.nome).join(', ')}\n       Sorteado na vaga: ${entrou.map((j)=>j.nome).join(', ')}');
+               }
+            }
+         }
+      }
+
+      if (logs.isNotEmpty) {
+         showDialog(
+           context: context,
+           builder: (ctx) => AlertDialog(
+             backgroundColor: const Color(0xFF0D1F3C),
+             shape: RoundedRectangleBorder(
+               borderRadius: BorderRadius.circular(16),
+               side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+             ),
+             title: const Text('Resumo de Empréstimos no Sorteio', style: TextStyle(color: Colors.white, fontSize: 18)),
+             content: SingleChildScrollView(
+               child: Text(logs.join('\n\n'), style: const TextStyle(color: Colors.white70, height: 1.4, fontSize: 13)),
+             ),
+             actions: [
+               FilledButton(
+                 onPressed: () => Navigator.of(ctx).pop(),
+                 style: FilledButton.styleFrom(backgroundColor: const Color(0xFFFF6B35)),
+                 child: const Text('Entendi'),
+               ),
+             ],
+           ),
+         );
+      }
     }
   }
 
