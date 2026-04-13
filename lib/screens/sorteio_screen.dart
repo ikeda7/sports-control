@@ -1462,7 +1462,7 @@ class SorteioScreen extends StatelessWidget {
 
     if (context.mounted) {
       final tempTimes = List.generate(novosTimes.length, (i) => Time(
-         id: i, sessaoId: sessaoId, nome: 'Time ${i+1}', jogadorIds: novosTimes[i].where((j) => !j.isEmprestado).map((j)=>j.id).toList(), ordem: i
+         id: i, sessaoId: sessao.id, nome: 'Time ${i+1}', jogadorIds: novosTimes[i].where((j) => !j.isEmprestado).map((j)=>j.id).toList(), ordem: i
       ));
       final jogMap = { for (final j in checkins) j.id: j };
 
