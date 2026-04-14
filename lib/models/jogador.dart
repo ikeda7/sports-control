@@ -74,6 +74,9 @@ class Jogador {
   /// Total de partidas disputadas — usado para garantir rodízio justo.
   final int partidasJogadas;
 
+  /// Indica se o jogador está atuando como 'quebra-galho' em um time que não é o seu.
+  final bool isEmprestado;
+
   const Jogador({
     required this.id,
     required this.nome,
@@ -81,6 +84,7 @@ class Jogador {
     required this.nivel,
     required this.papeis,
     required this.partidasJogadas,
+    this.isEmprestado = false,
   });
 
   /// Peso técnico derivado do nível. Usado pelo snake-draft.
@@ -97,6 +101,7 @@ class Jogador {
     Nivel? nivel,
     List<Papel>? papeis,
     int? partidasJogadas,
+    bool? isEmprestado,
   }) {
     return Jogador(
       id: id ?? this.id,
@@ -105,6 +110,7 @@ class Jogador {
       nivel: nivel ?? this.nivel,
       papeis: papeis ?? this.papeis,
       partidasJogadas: partidasJogadas ?? this.partidasJogadas,
+      isEmprestado: isEmprestado ?? this.isEmprestado,
     );
   }
 }

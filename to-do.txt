@@ -14,3 +14,11 @@ sempre adequar o time com quem está de fora, a base do time mantém mas inevita
 poder colocar um txt para importar pelo menos os nomes do jogadores
 
 atributos provavelmente vai mudar. 
+
+Luis obsevações:
+Colocar no máximo 2 mulheres por time
+
+Tem q ter sempre um levantador em cada time, se só tiver dois levantadores, 
+eles jogam todos os jogos por exemplo, se for mais, rotaciona com base nos jogos jogados
+
+Mudar depois a notificação de substituição, esta avisando com sortei tem que ser avisado quando o jogo for iniciar

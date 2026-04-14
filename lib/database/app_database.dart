@@ -505,6 +505,7 @@ class AppDatabase extends _$AppDatabase {
         timeBIds: _serializeIds(timeBIds),
         timeANome: Value(timeANome),
         timeBNome: Value(timeBNome),
+        status: const Value('em_andamento'),
         iniciadaEm: DateTime.now().millisecondsSinceEpoch,
       ),
     );
