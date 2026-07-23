@@ -1,24 +1,41 @@
-levantador fixo nos times, se tiver só 2 levantadores, eles jogam todos os jogos por exemplo, se for mais, rotaciona com base nos jogos jogados
+===============================================================================
+                       SPORTS CONTROL — LISTA DE TAREFAS (TO-DO)
+===============================================================================
 
-regras do jogo, pelo menos uma mulher e um levantador em cada time, equilibrar quem ataca bem, sempre distribuir de acordo com a quantidade de times
-substituição de jogador aparentemente sumiu, precisa de sugestão de substituição com base nos atributos também e nos jogos jogados, ou seja, o algoritmo tem q recomendar alguém q seja do mesmo nível e que tenha jogado menos que as outras pessoas (caso alguém estava no check-in mas por algum motivo não está jogando mais > na aba sorteio, liberar substituição caso algum jogador não esteja presente ou empréstimo de jogador
+-------------------------------------------------------------------------------
+🟢 CONCLUÍDO / IMPLEMENTADO
+-------------------------------------------------------------------------------
+[x] Cadastro de Jogadores: Nível (Iniciante, Intermediário, Avançado) e Papéis/Posições.
+[x] Importação de lista de nomes colada de texto (WhatsApp, numerada ou 1 por linha).
+[x] Gerador de dados de teste (popular 22 jogadores genéricos).
+[x] Check-in por sessão de rachão com seleção rápida ("Todos" / "Nenhum").
+[x] Sorteio equilibrado via Snake-Draft por nível/peso técnico.
+[x] Garantia de ao menos 1 levantador por time no sorteio (priorizando menos jogos).
+[x] Garantia de ao menos 1 mulher por time no sorteio (quando disponível).
+[x] Armazenamento permanente dos times sorteados por rachão no SQLite.
+[x] Regra de rotação "Ganhou 2 sai": acúmulo de vitórias e reset duplo ao vencer 2 seguidas.
+[x] Prioridade na próxima partida para o time com menos partidas disputadas.
+[x] Modal de substituição e empréstimo de jogadores em times sorteados.
+[x] Placar em tempo real com incremento automático de partidasJogadas ao encerrar.
 
-armazenar os times sempre (por rachão), eles vão ter a mesma base porém alguns jogadores podem mudar (igual falei antes)
+-------------------------------------------------------------------------------
+🟡 PENDENTE / A FAZER
+-------------------------------------------------------------------------------
+[ ] CHEGADA ATRASADA (Inclusão Tardia no Sorteio sem Re-sortear):
+    - Se os times já foram sorteados e um jogador chegar atrasado (fizer check-in depois):
+    - NÃO re-sortear todos os times do zero.
+    - Se houver algum time incompleto (com menos jogadores que a capacidade), alocar o atrasado nesse time.
+    - Se todos os times já estiverem completos, adicionar o jogador atrasado ao banco/fila de rotação sem desmanchar os times sorteados.
 
-placar armazenar apenas os jogos do dia ou organizar por data e hora na aba jogos
+[ ] REGRAS DE COMPOSIÇÃO DE TIME:
+    - Limite de no máximo 2 mulheres por time durante o sorteio.
+    - Levantadores fixos contínuos em cenários de escassez (ex: apenas 2 levantadores para 3+ times jogam todas as partidas rotacionando por empréstimo).
 
-os times que forem jogar nos jogos devem ser decididos com base no histórico: ganhou 2 sai, se no segundo jogo de um time eles ganharem novamente, os 2 times saem de quadra
-time que tiver jogado menos tem prioridade pra jogar o próximo
-sempre adequar o time com quem está de fora, a base do time mantém mas inevitavelmente os jogadores serão trocados
+[ ] IMPORTAÇÃO DE ARQUIVOS:
+    - Seleção direta de arquivo `.txt` do dispositivo para carregar lista de nomes.
 
-poder colocar um txt para importar pelo menos os nomes do jogadores
+[ ] NOTIFICAÇÕES & FLUXO DE JOGO:
+    - Mudar o aviso/notificação de substituição de jogador para ser exibido apenas ao iniciar a partida (na aba Placar/Escala) em vez da tela de sorteio.
 
-atributos provavelmente vai mudar. 
-
-Luis obsevações:
-Colocar no máximo 2 mulheres por time
-
-Tem q ter sempre um levantador em cada time, se só tiver dois levantadores, 
-eles jogam todos os jogos por exemplo, se for mais, rotaciona com base nos jogos jogados
-
-Mudar depois a notificação de substituição, esta avisando com sortei tem que ser avisado quando o jogo for iniciar
+[ ] HISTÓRICO & PLACAR:
+    - Organizar e filtrar o histórico global de partidas por data e hora na aba de jogos/histórico.
