@@ -28,9 +28,21 @@ dart run build_runner build --delete-conflicting-outputs
 
 # Watcher contínuo (mantém o código gerado atualizado durante desenvolvimento)
 dart run build_runner watch --delete-conflicting-outputs
+
+# Verificar formatação (hoje 12 de 19 arquivos em lib/ estão fora do padrão — ver issue #14)
+dart format --output=none --set-exit-if-changed lib test
+
+# ── Web ──────────────────────────────────────────────────────────────────────
+# Compilar o worker do Drift  ← OBRIGATÓRIO antes de qualquer build web
+dart compile js -O2 -o web/drift_worker.dart.js lib/database/drift_worker.dart
+
+# Build web (CanvasKit servido localmente em vez de www.gstatic.com)
+flutter build web --release --dart-define=FLUTTER_WEB_CANVASKIT_URL=/canvaskit/
 ```
 
-> **Windows**: requer Developer Mode ativado (`start ms-settings:developers`) para que Flutter crie symlinks de plugins nativos.
+> **Windows**: requer Developer Mode ativado (`start ms-settings:developers`) para que Flutter crie symlinks de plugins nativos. Sem isso o `flutter pub get` resolve as dependências mas falha no final com `Building with plugins requires symlink support`.
+
+> **Se o `flutter analyze` explodir com centenas de erros `Target of URI doesn't exist`**, não é o código — é o `flutter pub get` que não rodou nesta máquina. Rode e analise de novo.
 
 ## Arquitetura
 
@@ -58,8 +70,9 @@ Toda mutação no `AppDatabase` dispara automaticamente o Stream → atualiza os
 
 - **`lib/db.dart`** — singleton global `late AppDatabase db`, inicializado em `main()`. Separado de `main.dart` para quebrar dependência circular: `signals.dart` precisa de `db`, mas `main.dart` importa `main_screen.dart` que importa `signals.dart`.
 - **`lib/signals.dart`** — todos os signals compartilhados entre telas. O helper `_comSessao<T>()` cria um stream que depende da sessão ativa (equivalente ao `switchMap` do RxJS): quando a sessão muda, ele troca o stream automaticamente. Signals de escopo de tela ficam no topo do arquivo de tela (fora da classe), como singletons de arquivo.
-- **`lib/models/`** — modelos de domínio puros sem dependência de banco. `Jogador` tem `pesoTecnico` calculado como `(ataque + defesa + bloqueio + saque + passe) / 25.0` (range 0.2–1.0), usado pelo algoritmo de sorteio.
+- **`lib/models/`** — modelos de domínio puros sem dependência de banco. `Jogador.pesoTecnico` deriva de `nivel.peso` (iniciante `0.33`, intermediário `0.66`, avançado `1.0`), usado pelo algoritmo de sorteio. `Jogador.isLevantador` deriva de `papeis.contains(Papel.levantador)`.
 - **`lib/database/app_database.dart`** — tudo de Drift: tabelas, queries, conversores Row↔Domain. **Nunca edite `app_database.g.dart`** — é gerado.
+- **`lib/database/connection_native.dart` / `connection_web.dart`** — abrem o banco por plataforma. O nativo usa `NativeDatabase` sobre o diretório de documentos; o web usa `WasmDatabase` com `sqlite3.wasm` + um worker dedicado. `lib/database/drift_worker.dart` é o entrypoint desse worker e precisa ser compilado à parte (ver Commands).
 - **`lib/screens/`** — 4 telas: `JogadoresScreen` (0), `CheckInScreen` (1), `SorteioScreen` (2), `PlacarScreen` (3).
 
 ### Navegação
@@ -76,19 +89,42 @@ Toda mutação no `AppDatabase` dispara automaticamente o Stream → atualiza os
 
 ### Algoritmo de sorteio (SorteioScreen)
 
-Snake-draft por `pesoTecnico`: embaralha aleatoriamente, ordena por peso desc, distribui os `N × porTime` melhores em padrão ABBA por rodada para equalizar as somas. Gera N times (N = `checkins.length ~/ porTime`).
+Snake-draft por `pesoTecnico`, em `_sortearTimes(presentes, porTime, modalidade)`. Três detalhes que não são óbvios:
+
+1. **`n = (presentes.length / porTime).ceil()`** — arredonda para **cima**, não para baixo. Com 13 presentes e `porTime = 6` saem 3 times, não 2. Retorna lista vazia se `n < 2`.
+2. **Regra de Ocupação Total: ninguém fica no banco.** Times incompletos são preenchidos com jogadores *emprestados* de outros times, marcados com `isEmprestado: true` (uma cópia via `copyWith`, o jogador continua no time original). A prioridade de empréstimo é quem tem menos `partidasJogadas`.
+3. **As regras de levantador e de mulher só valem na quadra.** Todo o bloco está sob `if (modalidade == Modalidade.quadra)` — na areia (duplas/trios) não há garantia de levantador nem de mulher por time, o que é intencional.
+
+Ordem de alocação na quadra: levantadores primeiro (menos jogos têm prioridade) → ao menos 1 mulher por time (melhores por `pesoTecnico`) → restantes em snake-draft. Ao completar times, um time sem levantador recebe um levantador emprestado antes de qualquer outro candidato.
+
+> Ainda **não** existe teto de mulheres por time (só piso de 1) nem tratamento de "levantadores fixos contínuos" na escassez — ver issue #10.
 
 A escala round-robin é gerada pela função `_gerarEscala(n)`: todos os pares únicos reordenados para minimizar partidas consecutivas do mesmo time.
 
-### Schema do banco (v5)
+### Schema do banco (v8)
 
 | Tabela | Propósito |
 |---|---|
-| `jogadores` | Cadastro permanente de jogadores com atributos 1–5 |
-| `sessoes` | Uma sessão por rachão (`ativa` / `encerrada`) |
+| `jogadores` | Cadastro permanente: `nivel` (enum) + `papeis` (lista de enums) |
+| `sessoes` | Uma sessão por rachão (`ativa` / `encerrada`), com `modalidade` e `porTime` |
 | `checkins` | Presença por sessão (`UNIQUE sessaoId + jogadorId`) |
-| `times` | Times nomeados sorteados por sessão (Time 1, Time 2...) |
+| `times` | Times nomeados sorteados por sessão, com `ordem` e `vitorias` consecutivas |
 | `partidas` | Partidas com placar, nomes dos times e IDs dos jogadores |
+
+Histórico de migrações relevante (`onUpgrade` em `app_database.dart`):
+
+| Versão | Mudança |
+|---|---|
+| v5 | Tabela de times nomeados + nomes dos times nas partidas |
+| v6 | Coluna de vitórias consecutivas por time (regra "ganhou 2 sai") |
+| v7 | **Substitui os 5 atributos numéricos por `nivel` + `papeis`** |
+| v8 | `modalidade` (quadra/areia) e `porTime` na sessão |
+
+> A v7 é a razão pela qual `pesoTecnico` não é mais uma média de atributos. Se você encontrar código ou documentação falando de ataque/defesa/bloqueio/saque/passe, está desatualizado.
+
+### Modalidade e tamanho de time
+
+`Sessao.modalidade` (`quadra` / `areia`) combinada com `porTime` define o prefixo dos times via `Sessao.prefixoTime`: areia com `porTime == 2` → "Dupla", areia com outro valor → "Trio", quadra → "Time". Quadra usa tipicamente `porTime == 6`.
 
 ### Padrão de adição de tabelas
 
@@ -109,6 +145,30 @@ Listas de IDs (`timeAIds`, `timeBIds`, `jogadorIds`) são serializadas como stri
 ### Glassmorphism
 
 Cards usam `ClipRRect` + `BackdropFilter(filter: ImageFilter.blur(...))` + `Container` com `Colors.white.withValues(alpha: 0.08)`. Use `.withValues(alpha: x)` (não `.withOpacity()`, que está depreciado no Dart 3.11+).
+
+### Plataforma web e deploy
+
+O app roda em três plataformas: Windows (primária), Android e web. A web é publicada em <https://sportscontrol.vercel.app>.
+
+Dois detalhes que quebram o build web se ignorados:
+
+1. **`web/drift_worker.dart.js` é um artefato compilado**, não escrito à mão. Precisa ser regerado com `dart compile js` sempre que `lib/database/drift_worker.dart` mudar. O workflow de deploy faz isso automaticamente.
+2. **`web/vercel.json`** é copiado para `build/web/` pelo `flutter build web` e é de lá que a Vercel o lê. Ele define o rewrite de SPA (toda rota → `/index.html`) e os headers `COOP: same-origin` + `COEP: require-corp`, necessários para `SharedArrayBuffer` — que é o que permite ao `sqlite3.wasm` usar OPFS no navegador. **Não remova esses headers** sem entender que isso derruba a persistência no web.
+
+### Fluxo de branches e CI
+
+```
+master   ← produção (deploy --prod + smoke test). Só recebe merge de develop, via PR.
+develop  ← integração (deploy de preview). Tire suas branches daqui.
+  └── feat/… fix/… ci/… docs/… chore/…
+```
+
+Detalhes em [CONTRIBUTING.md](CONTRIBUTING.md). Dois workflows em `.github/workflows/`:
+
+- **`ci.yml`** — em PRs e pushes: verifica se o codegen do Drift está em sincronia (regera e compara), `flutter analyze`, `flutter test`, e formatação como informativo.
+- **`deploy-web.yml`** — build web + deploy na Vercel via CLI oficial. Preview em `develop` e PRs; produção só em `master`, com smoke test dos assets principais.
+
+> O deploy usa `npm install --global vercel@latest` em vez de `npx vercel@…` de propósito: o `npx` pode parar para pedir confirmação de instalação e travar o job até o timeout. Há `timeout-minutes` no job por causa disso.
 
 ### Paleta de cores
 
