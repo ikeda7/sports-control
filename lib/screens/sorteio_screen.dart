@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
 import '../db.dart';
+import '../design/design.dart';
 import '../models/jogador.dart';
 import '../models/sessao.dart';
 import '../models/time.dart';
@@ -253,16 +254,12 @@ class SorteioScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Gradiente e largura de conteúdo vêm do shell (MainScreen).
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF070B18), Color(0xFF0D1F3C), Color(0xFF1A0A2E)],
-          ),
-        ),
-        child: SafeArea(child: Watch((ctx) => _buildConteudo(ctx))),
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        bottom: false,
+        child: Watch((ctx) => _buildConteudo(ctx)),
       ),
     );
   }
@@ -297,7 +294,13 @@ class SorteioScreen extends StatelessWidget {
         _buildHeader(checkins.length, porTime, sessao),
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            padding: const EdgeInsets.only(
+              left: SCSpace.x8,
+              right: SCSpace.x8,
+              // Folga para a barra de navegação de vidro não cobrir o botão de
+              // re-sortear, que fica no fim da coluna.
+              bottom: SCLayout.bottomNavClearance,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -328,97 +331,61 @@ class SorteioScreen extends StatelessWidget {
   Widget _buildHeader(int presentes, int porTime, Sessao sessao) {
     final isAreia = sessao.modalidade == Modalidade.areia;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-      child: Row(
+      padding: const EdgeInsets.only(
+        left: SCSpace.x8,
+        right: SCSpace.x8,
+        top: SCSpace.x9,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [
-                  const Text('Sorteio',
-                      style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: 1.2)),
-                  if (isAreia) ...[
-                    const SizedBox(width: 10),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFD700).withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                            color: const Color(0xFFFFD700)
-                                .withValues(alpha: 0.4)),
-                      ),
-                      child: Text('🏖️ ${sessao.prefixoTime}s',
-                          style: const TextStyle(
-                              color: Color(0xFFFFD700),
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold)),
-                    ),
-                  ],
-                ]),
-                Text('$presentes no check-in',
-                    style: const TextStyle(
-                        color: Colors.white54, fontSize: 14)),
-              ],
-            ),
+          SCScreenHeader(
+            title: 'Sorteio',
+            status: '$presentes no check-in',
+            // Na areia o tamanho do time é fixo na sessão, então em vez do
+            // controle mostra só a modalidade.
+            trailing: isAreia
+                ? SCBadge(
+                    label: '🏖️ ${sessao.prefixoTime}s',
+                    color: SCColors.setter,
+                  )
+                : null,
           ),
-          if (!isAreia) _buildPorTimeControl(porTime),
+          if (!isAreia) ...[
+            _buildPorTimeControl(porTime),
+            const SizedBox(height: SCSpace.x3),
+          ],
         ],
       ),
     );
   }
 
   Widget _buildPorTimeControl(int porTime) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-                color: Colors.white.withValues(alpha: 0.15)),
+    return GlassCard(
+      radius: SCRadius.lg,
+      tint: Colors.white.withValues(alpha: 0.08),
+      borderColor: SCColors.line3,
+      padding: const EdgeInsets.symmetric(
+        horizontal: SCSpace.x6,
+        vertical: SCSpace.x4,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Jogadores por time',
+            style: TextStyle(
+              color: SCColors.textTertiary,
+              fontSize: SCType.fsBodySm,
+            ),
           ),
-          padding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Por time:',
-                  style: TextStyle(
-                      color: Colors.white54, fontSize: 12)),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () {
-                  if (_porTimeSignal.value > 2) _porTimeSignal.value--;
-                },
-                child: const Icon(Icons.remove_circle_outline,
-                    color: Colors.white54, size: 22),
-              ),
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10),
-                child: Text('$porTime',
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold)),
-              ),
-              GestureDetector(
-                onTap: () => _porTimeSignal.value++,
-                child: const Icon(Icons.add_circle_outline,
-                    color: Colors.white54, size: 22),
-              ),
-            ],
+          SCStepper(
+            value: porTime,
+            min: 2,
+            max: 12,
+            onChanged: (v) => _porTimeSignal.value = v,
           ),
-        ),
+        ],
       ),
     );
   }
@@ -486,161 +453,29 @@ class SorteioScreen extends StatelessWidget {
     );
 
     final todosJogadores = [...jogadoresOriginais, ...emprestados];
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          decoration: BoxDecoration(
-            color: cor.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(16),
-            border:
-                Border.all(color: cor.withValues(alpha: 0.4), width: 1.5),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Cabeçalho do time
-              Container(
-                padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
-                decoration: BoxDecoration(
-                  color: cor.withValues(alpha: 0.15),
-                  borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(15)),
-                ),
-                child: Row(
-                  children: [
-                    Text(time.nome,
-                        style: TextStyle(
-                            color: cor,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold)),
-                    if (time.vitorias > 0) ...[
-                      const SizedBox(width: 8),
-                      _buildVitoriasBadge(time.vitorias),
-                    ],
-                    const Spacer(),
-                    Text(
-                      _resumoNivel(todosJogadores),
-                      style: TextStyle(
-                          color: cor.withValues(alpha: 0.6),
-                          fontSize: 11),
-                    ),
-                    const SizedBox(width: 8),
-                    // Botão substituição — sempre visível
-                    GestureDetector(
-                      onTap: () => _dialogSubstituir(
-                          context, time, jogadoresOriginais, bancal, sessaoId),
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFF9800)
-                              .withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: const Color(0xFFFF9800)
-                                .withValues(alpha: 0.4),
-                          ),
-                        ),
-                        child: const Icon(Icons.swap_horiz_rounded,
-                            color: Color(0xFFFF9800), size: 16),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Jogadores
-              ...todosJogadores.map((j) {
-                final isEmprestado = emprestados.any((e) => e.id == j.id);
-                return Padding(
-                    padding:
-                        const EdgeInsets.fromLTRB(16, 10, 16, 2),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 14,
-                          backgroundColor: isEmprestado 
-                              ? Colors.white.withValues(alpha: 0.1) 
-                              : cor.withValues(alpha: 0.2),
-                          child: Text(j.nome[0].toUpperCase(),
-                              style: TextStyle(
-                                  color: isEmprestado ? Colors.white54 : cor,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12)),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Row(
-                            children: [
-                              Flexible(
-                                child: Text(j.nome,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                        color: isEmprestado ? Colors.white70 : Colors.white,
-                                        fontWeight: isEmprestado ? FontWeight.w400 : FontWeight.w500,
-                                        fontStyle: isEmprestado ? FontStyle.italic : FontStyle.normal,
-                                        fontSize: 14)),
-                              ),
-                              if (isEmprestado) ...[
-                                const SizedBox(width: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-                                  ),
-                                  child: const Text('EMP',
-                                    style: TextStyle(color: Colors.white70, fontSize: 8, fontWeight: FontWeight.bold)),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        if (j.isLevantador)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 5, vertical: 1),
-                            margin:
-                                const EdgeInsets.only(right: 6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFD700)
-                                  .withValues(alpha: 0.15),
-                              borderRadius:
-                                  BorderRadius.circular(5),
-                              border: Border.all(
-                                  color: const Color(0xFFFFD700)
-                                      .withValues(alpha: 0.5)),
-                            ),
-                            child: const Text('LEV',
-                                style: TextStyle(
-                                    color: Color(0xFFFFD700),
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.bold)),
-                          ),
-                        if (j.genero == Genero.feminino)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 6),
-                            child: Icon(Icons.female_rounded,
-                                color: const Color(0xFFE91E8C)
-                                    .withValues(alpha: 0.8),
-                                size: 14),
-                          ),
-                        Text(
-                          j.nivel.label,
-                          style: TextStyle(
-                              color: cor.withValues(alpha: 0.6),
-                              fontSize: 11),
-                        ),
-                      ],
-                    ),
-                  );
-              }),
-              const SizedBox(height: 12),
-            ],
-          ),
-        ),
+
+    return SCTeamCard(
+      name: time.nome,
+      color: cor,
+      wins: time.vitorias,
+      summary: _resumoNivel(todosJogadores),
+      onSubstitute: () => _dialogSubstituir(
+        context,
+        time,
+        jogadoresOriginais,
+        bancal,
+        sessaoId,
       ),
+      players: [
+        for (final j in todosJogadores)
+          SCTeamPlayer(
+            name: j.nome,
+            level: j.nivel.label,
+            isSetter: j.isLevantador,
+            isFemale: j.genero == Genero.feminino,
+            borrowed: emprestados.any((e) => e.id == j.id),
+          ),
+      ],
     );
   }
 
@@ -1055,55 +890,48 @@ class SorteioScreen extends StatelessWidget {
     int porTime,
     Sessao sessao,
   ) {
-    final nTimes = checkins.length ~/ porTime;
+    // Mesmo cálculo do _sortearTimes: arredonda para CIMA. Antes aqui usava
+    // `~/` (para baixo), então o preview mentia — com 22 presentes e 6 por time
+    // dizia "3 times" e o sorteio produzia 4. Times incompletos são preenchidos
+    // com emprestados pela Regra de Ocupação Total.
+    final nTimes = (checkins.length / porTime).ceil();
     final pode = nTimes >= 2;
     final label = sessao.prefixoTime.toLowerCase();
 
     return Column(
       children: [
-        const SizedBox(height: 40),
-        Icon(Icons.shuffle_rounded,
-            size: 64,
-            color: Colors.white.withValues(alpha: 0.12)),
-        const SizedBox(height: 16),
-        if (!pode)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Text(
-              'São necessários pelo menos ${porTime * 2} jogadores ($porTime por $label) para sortear 2 ${label}s.',
-              style: const TextStyle(
-                  color: Colors.white38, fontSize: 13),
-              textAlign: TextAlign.center,
+        const SizedBox(height: SCSpace.x12),
+        Icon(
+          Icons.shuffle_rounded,
+          size: 64,
+          color: Colors.white.withValues(alpha: 0.12),
+        ),
+        const SizedBox(height: SCSpace.x8),
+        Padding(
+          padding: const EdgeInsets.only(bottom: SCSpace.x8),
+          child: Text(
+            pode
+                ? '${checkins.length} jogadores → $nTimes ${label}s de $porTime'
+                : 'São necessários pelo menos ${porTime + 1} jogadores '
+                    'para formar 2 ${label}s.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: pode ? SCColors.textTertiary : SCColors.textDisabled,
+              fontSize: SCType.fsBodySm,
+              height: 1.4,
             ),
-          )
-        else
-          Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Text(
-              '${checkins.length} jogadores → $nTimes ${label}s de $porTime',
-              style: const TextStyle(
-                  color: Colors.white54, fontSize: 13),
-            ),
-          ),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: pode
-                  ? const Color(0xFFFF6B35)
-                  : Colors.white.withValues(alpha: 0.1),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-            ),
-            icon: const Icon(Icons.shuffle_rounded, size: 22),
-            label: const Text('Sortear Times',
-                style: TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.bold)),
-            onPressed: pode
-                ? () => _sortearESalvar(context, checkins, porTime, sessao)
-                : null,
           ),
         ),
-        const SizedBox(height: 40),
+        SCButton(
+          label: 'Sortear times',
+          icon: Icons.shuffle_rounded,
+          size: SCButtonSize.lg,
+          fullWidth: true,
+          onPressed: pode
+              ? () => _sortearESalvar(context, checkins, porTime, sessao)
+              : null,
+        ),
+        const SizedBox(height: SCSpace.x12),
       ],
     );
   }
@@ -1115,15 +943,11 @@ class SorteioScreen extends StatelessWidget {
     int porTime,
     Sessao sessao,
   ) {
-    return OutlinedButton.icon(
-      style: OutlinedButton.styleFrom(
-        foregroundColor: Colors.white54,
-        side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      ),
-      icon: const Icon(Icons.refresh_rounded, size: 18),
-      label: const Text('Re-sortear'),
+    return SCButton(
+      label: 'Re-sortear',
+      icon: Icons.refresh_rounded,
+      variant: SCButtonVariant.outlined,
+      fullWidth: true,
       onPressed: () =>
           _confirmarResortear(context, checkins, porTime, sessao),
     );
@@ -1466,28 +1290,6 @@ class SorteioScreen extends StatelessWidget {
 
   // ── Mensagem de estado vazio ───────────────────────────────────────────────
   Widget _buildMsg(IconData icon, String titulo, String sub) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 64, color: Colors.white.withValues(alpha: 0.15)),
-          const SizedBox(height: 16),
-          Text(titulo,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Text(sub,
-                style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.4),
-                    fontSize: 14),
-                textAlign: TextAlign.center),
-          ),
-        ],
-      ),
-    );
+    return SCEmptyState(icon: icon, title: titulo, subtitle: sub);
   }
 }
