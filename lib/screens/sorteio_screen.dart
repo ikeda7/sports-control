@@ -343,31 +343,42 @@ class SorteioScreen extends StatelessWidget {
     int porTime,
     Map<int, Jogador> jogMap,
   ) async {
-    for (final atrasado in atrasados) {
-      // Recarrega os times do signal a cada iteração para pegar vagas atualizadas
-      final timesAtualizados = timesSignal.value.value ?? [];
-      final timesIncompletos = timesAtualizados.where((t) => t.jogadorIds.length < porTime).toList();
-      
-      if (timesIncompletos.isEmpty) break; // Não há mais vagas
+    try {
+      List<Time> timesAtualizados = List.from(timesSignal.value.value ?? []);
 
-      Time? timeDestino;
+      for (final atrasado in atrasados) {
+        final timesIncompletos = timesAtualizados.where((t) => t.jogadorIds.length < porTime).toList();
+        
+        if (timesIncompletos.isEmpty) break; // Não há mais vagas
 
-      // 1. Prioridade Levantador: Se o atrasado for levantador, buscar time sem levantador
-      if (atrasado.isLevantador) {
-        timeDestino = timesIncompletos.where((t) {
-          final temLev = t.jogadorIds.any((id) => jogMap[id]?.isLevantador == true);
-          return !temLev;
-        }).firstOrNull;
+        Time? timeDestino;
+
+        // 1. Prioridade Levantador: Se o atrasado for levantador, buscar time sem levantador
+        if (atrasado.isLevantador) {
+          timeDestino = timesIncompletos.where((t) {
+            final temLev = t.jogadorIds.any((id) => jogMap[id]?.isLevantador == true);
+            return !temLev;
+          }).firstOrNull;
+        }
+
+        // 2. Se não for levantador (ou não achou vaga de levantador), vai para o time mais desfalcado
+        if (timeDestino == null) {
+          timesIncompletos.sort((a, b) => a.jogadorIds.length.compareTo(b.jogadorIds.length));
+          timeDestino = timesIncompletos.first;
+        }
+
+        final novosIds = [...timeDestino.jogadorIds, atrasado.id];
+        
+        // Atualiza na memória para a próxima iteração do loop
+        final idx = timesAtualizados.indexWhere((t) => t.id == timeDestino!.id);
+        if (idx != -1) {
+          timesAtualizados[idx] = timeDestino.copyWith(jogadorIds: novosIds);
+        }
+
+        await db.atualizarTimeJogadores(timeDestino.id, novosIds);
       }
-
-      // 2. Se não for levantador (ou não achou vaga de levantador), vai para o time mais desfalcado
-      if (timeDestino == null) {
-        timesIncompletos.sort((a, b) => a.jogadorIds.length.compareTo(b.jogadorIds.length));
-        timeDestino = timesIncompletos.first;
-      }
-
-      final novosIds = [...timeDestino.jogadorIds, atrasado.id];
-      await db.atualizarTimeJogadores(timeDestino.id, novosIds);
+    } finally {
+      _isAlocandoAtrasados = false;
     }
   }
 
