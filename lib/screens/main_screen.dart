@@ -70,6 +70,7 @@ class MainScreen extends StatelessWidget {
             ),
           ),
           bottomNavigationBar: SCContentWidth(
+            wrapHeight: true,
             child: SCBottomNav(
               items: _navItems,
               currentIndex: idx,

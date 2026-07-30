@@ -31,15 +31,25 @@ class SCContentWidth extends StatelessWidget {
     super.key,
     required this.child,
     this.maxWidth = SCLayout.maxContentWidth,
+    this.wrapHeight = false,
   });
 
   final Widget child;
   final double maxWidth;
 
+  /// `true` faz a altura acompanhar o filho em vez de esticar.
+  ///
+  /// Obrigatório ao usar isto como `bottomNavigationBar`: sem `heightFactor`, o
+  /// `Align` expande na vertical, a barra ocupa a tela inteira e o corpo do
+  /// `Scaffold` fica sem espaço. Já aconteceu — a nav apareceu no topo com o
+  /// resto em branco.
+  final bool wrapHeight;
+
   @override
   Widget build(BuildContext context) {
     return Align(
-      alignment: Alignment.topCenter,
+      alignment: wrapHeight ? Alignment.bottomCenter : Alignment.topCenter,
+      heightFactor: wrapHeight ? 1.0 : null,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxWidth),
         child: child,
