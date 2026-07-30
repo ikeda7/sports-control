@@ -25,7 +25,33 @@ class CheckInScreen extends StatelessWidget {
   Widget _buildConteudo(BuildContext context) {
     final sessao = sessaoAtualSignal.value.value;
 
-    if (sessao == null) return _buildSemSessao(context);
+    // Cabeçalho sempre presente, inclusive sem sessão: sem ele a tela vira um
+    // botão solto no meio do nada, sem título nem contexto.
+    if (sessao == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(
+              left: SCSpace.x8,
+              right: SCSpace.x8,
+              top: SCSpace.x10,
+            ),
+            // Sem status: a mensagem já vem do bloco central, e repetir a mesma
+            // frase logo abaixo do título é ruído.
+            child: SCScreenHeader(title: 'Check-in'),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(
+                bottom: SCLayout.bottomNavClearance,
+              ),
+              child: _buildSemSessao(context),
+            ),
+          ),
+        ],
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -89,7 +115,7 @@ class CheckInScreen extends StatelessWidget {
       padding: const EdgeInsets.only(
         left: SCSpace.x8,
         right: SCSpace.x8,
-        top: SCSpace.x9,
+        top: SCSpace.x10,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

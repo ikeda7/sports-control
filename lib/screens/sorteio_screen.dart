@@ -249,6 +249,8 @@ List<Jogador> _calcularEmprestados({
 final _porTimeSignal = signal<int>(6);
 
 // ─── Tela ─────────────────────────────────────────────────────────────────────
+bool _isAtualizandoTimes = false;
+
 class SorteioScreen extends StatelessWidget {
   const SorteioScreen({super.key});
 
@@ -270,9 +272,18 @@ class SorteioScreen extends StatelessWidget {
     final times = timesSignal.value.value ?? [];
     final jogMap = jogadoresMapSignal.value;
 
+    // O cabeçalho fica sempre visível, inclusive nos estados vazios: sem ele a
+    // tela perde o título e o usuário não sabe em que aba está — só via um
+    // ícone solto no meio do nada.
     if (sessao == null) {
-      return _buildMsg(Icons.play_circle_outline_rounded,
-          'Nenhum rachão ativo', 'Inicie o rachão na aba Check-in');
+      return _semConteudo(
+        titulo: 'Sorteio',
+        vazio: _buildMsg(
+          Icons.play_circle_outline_rounded,
+          'Nenhum rachão ativo',
+          'Inicie o rachão na aba Check-in',
+        ),
+      );
     }
 
     // Para areia o porTime é fixo na sessão; para quadra o usuário pode ajustar.
@@ -281,12 +292,33 @@ class SorteioScreen extends StatelessWidget {
         isAreia ? sessao.porTime : _porTimeSignal.value;
 
     if (checkins.isEmpty) {
-      return _buildMsg(Icons.how_to_reg_outlined, 'Ninguém fez check-in',
-          'Confirme a presença dos jogadores na aba Check-in');
+      return _semConteudo(
+        titulo: 'Sorteio',
+        vazio: _buildMsg(
+          Icons.how_to_reg_outlined,
+          'Ninguém fez check-in',
+          'Confirme a presença dos jogadores na aba Check-in',
+        ),
+      );
     }
 
     final timesIds = times.expand((t) => t.jogadorIds).toSet();
+    final checkinsIds = checkins.map((j) => j.id).toSet();
+    
     final bancal = checkins.where((j) => !timesIds.contains(j.id)).toList();
+    final fugioes = timesIds.difference(checkinsIds);
+
+    // ─── Atualização Automática de Vagas ─────────────────────────────────
+    if (times.isNotEmpty && (bancal.isNotEmpty || fugioes.isNotEmpty) && !_isAtualizandoTimes) {
+      final timesIncompletos = times.where((t) => t.jogadorIds.length < porTime).toList();
+      if (fugioes.isNotEmpty || timesIncompletos.isNotEmpty) {
+        _isAtualizandoTimes = true;
+        Future.microtask(() async {
+          await _atualizarTimesAutomaticamente(bancal, fugioes, porTime, jogMap);
+          _isAtualizandoTimes = false;
+        });
+      }
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -327,6 +359,96 @@ class SorteioScreen extends StatelessWidget {
     );
   }
 
+  Future<void> _atualizarTimesAutomaticamente(
+    List<Jogador> atrasados,
+    Set<int> fugioes,
+    int porTime,
+    Map<int, Jogador> jogMap,
+  ) async {
+    try {
+      List<Time> timesAtualizados = List.from(timesSignal.value.value ?? []);
+
+      // 1. Remove quem saiu (fugiões)
+      if (fugioes.isNotEmpty) {
+        for (var i = 0; i < timesAtualizados.length; i++) {
+          final t = timesAtualizados[i];
+          final hasFugiao = t.jogadorIds.any((id) => fugioes.contains(id));
+          if (hasFugiao) {
+            final novosIds = t.jogadorIds.where((id) => !fugioes.contains(id)).toList();
+            timesAtualizados[i] = t.copyWith(jogadorIds: novosIds);
+            await db.atualizarTimeJogadores(t.id, novosIds);
+          }
+        }
+      }
+
+      // 2. Aloca quem chegou atrasado (bancal)
+      for (final atrasado in atrasados) {
+        var timesIncompletos = timesAtualizados.where((t) => t.jogadorIds.length < porTime).toList();
+        if (timesIncompletos.isEmpty) break; // Não há mais vagas
+
+        Time? timeDestino;
+        bool fezTrocaCompleta = false;
+
+        // Prioridade Levantador
+        if (atrasado.isLevantador) {
+          // Tenta primeiro os times incompletos
+          timeDestino = timesIncompletos.where((t) {
+            final temLev = t.jogadorIds.any((id) => jogMap[id]?.isLevantador == true);
+            return !temLev;
+          }).firstOrNull;
+
+          // Se todos os incompletos já têm levantador, procura num time completo que não tenha
+          if (timeDestino == null) {
+            final timesCompletos = timesAtualizados.where((t) => t.jogadorIds.length >= porTime).toList();
+            final timeCompletoSemLev = timesCompletos.where((t) {
+              return !t.jogadorIds.any((id) => jogMap[id]?.isLevantador == true);
+            }).firstOrNull;
+
+            if (timeCompletoSemLev != null) {
+              fezTrocaCompleta = true;
+              
+              // Remove o último jogador do time completo (geralmente o de menor nível / homem)
+              final idPraSair = timeCompletoSemLev.jogadorIds.last;
+              
+              // Atualiza o time completo com o novo levantador
+              final novosIdsCompleto = timeCompletoSemLev.jogadorIds.where((id) => id != idPraSair).toList()..add(atrasado.id);
+              final idxComp = timesAtualizados.indexWhere((t) => t.id == timeCompletoSemLev.id);
+              timesAtualizados[idxComp] = timeCompletoSemLev.copyWith(jogadorIds: novosIdsCompleto);
+              await db.atualizarTimeJogadores(timeCompletoSemLev.id, novosIdsCompleto);
+
+              // Coloca o jogador que sobrou no time incompleto mais desfalcado
+              timesIncompletos.sort((a, b) => a.jogadorIds.length.compareTo(b.jogadorIds.length));
+              final timeDestinoInc = timesIncompletos.first;
+              final novosIdsInc = [...timeDestinoInc.jogadorIds, idPraSair];
+              final idxInc = timesAtualizados.indexWhere((t) => t.id == timeDestinoInc.id);
+              timesAtualizados[idxInc] = timeDestinoInc.copyWith(jogadorIds: novosIdsInc);
+              await db.atualizarTimeJogadores(timeDestinoInc.id, novosIdsInc);
+            }
+          }
+        }
+
+        if (fezTrocaCompleta) continue;
+
+        // Se não for levantador (ou não achou vaga de levantador), vai para o time mais desfalcado
+        if (timeDestino == null) {
+          timesIncompletos.sort((a, b) => a.jogadorIds.length.compareTo(b.jogadorIds.length));
+          timeDestino = timesIncompletos.first;
+        }
+
+        final novosIds = [...timeDestino.jogadorIds, atrasado.id];
+        
+        final idx = timesAtualizados.indexWhere((t) => t.id == timeDestino!.id);
+        if (idx != -1) {
+          timesAtualizados[idx] = timeDestino.copyWith(jogadorIds: novosIds);
+        }
+
+        await db.atualizarTimeJogadores(timeDestino.id, novosIds);
+      }
+    } finally {
+      _isAtualizandoTimes = false;
+    }
+  }
+
   // ── Header ──────────────────────────────────────────────────────────────────
   Widget _buildHeader(int presentes, int porTime, Sessao sessao) {
     final isAreia = sessao.modalidade == Modalidade.areia;
@@ -334,7 +456,7 @@ class SorteioScreen extends StatelessWidget {
       padding: const EdgeInsets.only(
         left: SCSpace.x8,
         right: SCSpace.x8,
-        top: SCSpace.x9,
+        top: SCSpace.x10,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1291,5 +1413,39 @@ class SorteioScreen extends StatelessWidget {
   // ── Mensagem de estado vazio ───────────────────────────────────────────────
   Widget _buildMsg(IconData icon, String titulo, String sub) {
     return SCEmptyState(icon: icon, title: titulo, subtitle: sub);
+  }
+
+  /// Tela em estado vazio, mas com o cabeçalho preservado.
+  ///
+  /// O `status` fica de fora por padrão: a mensagem já é dada pelo estado vazio
+  /// no meio da tela, e repetir a mesma frase logo abaixo do título é ruído.
+  Widget _semConteudo({
+    required String titulo,
+    String? status,
+    required Widget vazio,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(
+            left: SCSpace.x8,
+            right: SCSpace.x8,
+            top: SCSpace.x10,
+          ),
+          child: SCScreenHeader(title: titulo, status: status),
+        ),
+        // Expanded + Center dentro do SCEmptyState = conteúdo no meio do espaço
+        // que sobra, em vez de colado embaixo do cabeçalho.
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(
+              bottom: SCLayout.bottomNavClearance,
+            ),
+            child: vazio,
+          ),
+        ),
+      ],
+    );
   }
 }
