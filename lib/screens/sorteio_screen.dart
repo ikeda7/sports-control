@@ -249,6 +249,8 @@ List<Jogador> _calcularEmprestados({
 final _porTimeSignal = signal<int>(6);
 
 // ─── Tela ─────────────────────────────────────────────────────────────────────
+bool _isAtualizandoTimes = false;
+
 class SorteioScreen extends StatelessWidget {
   const SorteioScreen({super.key});
 
@@ -286,7 +288,22 @@ class SorteioScreen extends StatelessWidget {
     }
 
     final timesIds = times.expand((t) => t.jogadorIds).toSet();
+    final checkinsIds = checkins.map((j) => j.id).toSet();
+    
     final bancal = checkins.where((j) => !timesIds.contains(j.id)).toList();
+    final fugioes = timesIds.difference(checkinsIds);
+
+    // ─── Atualização Automática de Vagas ─────────────────────────────────
+    if (times.isNotEmpty && (bancal.isNotEmpty || fugioes.isNotEmpty) && !_isAtualizandoTimes) {
+      final timesIncompletos = times.where((t) => t.jogadorIds.length < porTime).toList();
+      if (fugioes.isNotEmpty || timesIncompletos.isNotEmpty) {
+        _isAtualizandoTimes = true;
+        Future.microtask(() async {
+          await _atualizarTimesAutomaticamente(bancal, fugioes, porTime, jogMap);
+          _isAtualizandoTimes = false;
+        });
+      }
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -325,6 +342,96 @@ class SorteioScreen extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  Future<void> _atualizarTimesAutomaticamente(
+    List<Jogador> atrasados,
+    Set<int> fugioes,
+    int porTime,
+    Map<int, Jogador> jogMap,
+  ) async {
+    try {
+      List<Time> timesAtualizados = List.from(timesSignal.value.value ?? []);
+
+      // 1. Remove quem saiu (fugiões)
+      if (fugioes.isNotEmpty) {
+        for (var i = 0; i < timesAtualizados.length; i++) {
+          final t = timesAtualizados[i];
+          final hasFugiao = t.jogadorIds.any((id) => fugioes.contains(id));
+          if (hasFugiao) {
+            final novosIds = t.jogadorIds.where((id) => !fugioes.contains(id)).toList();
+            timesAtualizados[i] = t.copyWith(jogadorIds: novosIds);
+            await db.atualizarTimeJogadores(t.id, novosIds);
+          }
+        }
+      }
+
+      // 2. Aloca quem chegou atrasado (bancal)
+      for (final atrasado in atrasados) {
+        var timesIncompletos = timesAtualizados.where((t) => t.jogadorIds.length < porTime).toList();
+        if (timesIncompletos.isEmpty) break; // Não há mais vagas
+
+        Time? timeDestino;
+        bool fezTrocaCompleta = false;
+
+        // Prioridade Levantador
+        if (atrasado.isLevantador) {
+          // Tenta primeiro os times incompletos
+          timeDestino = timesIncompletos.where((t) {
+            final temLev = t.jogadorIds.any((id) => jogMap[id]?.isLevantador == true);
+            return !temLev;
+          }).firstOrNull;
+
+          // Se todos os incompletos já têm levantador, procura num time completo que não tenha
+          if (timeDestino == null) {
+            final timesCompletos = timesAtualizados.where((t) => t.jogadorIds.length >= porTime).toList();
+            final timeCompletoSemLev = timesCompletos.where((t) {
+              return !t.jogadorIds.any((id) => jogMap[id]?.isLevantador == true);
+            }).firstOrNull;
+
+            if (timeCompletoSemLev != null) {
+              fezTrocaCompleta = true;
+              
+              // Remove o último jogador do time completo (geralmente o de menor nível / homem)
+              final idPraSair = timeCompletoSemLev.jogadorIds.last;
+              
+              // Atualiza o time completo com o novo levantador
+              final novosIdsCompleto = timeCompletoSemLev.jogadorIds.where((id) => id != idPraSair).toList()..add(atrasado.id);
+              final idxComp = timesAtualizados.indexWhere((t) => t.id == timeCompletoSemLev.id);
+              timesAtualizados[idxComp] = timeCompletoSemLev.copyWith(jogadorIds: novosIdsCompleto);
+              await db.atualizarTimeJogadores(timeCompletoSemLev.id, novosIdsCompleto);
+
+              // Coloca o jogador que sobrou no time incompleto mais desfalcado
+              timesIncompletos.sort((a, b) => a.jogadorIds.length.compareTo(b.jogadorIds.length));
+              final timeDestinoInc = timesIncompletos.first;
+              final novosIdsInc = [...timeDestinoInc.jogadorIds, idPraSair];
+              final idxInc = timesAtualizados.indexWhere((t) => t.id == timeDestinoInc.id);
+              timesAtualizados[idxInc] = timeDestinoInc.copyWith(jogadorIds: novosIdsInc);
+              await db.atualizarTimeJogadores(timeDestinoInc.id, novosIdsInc);
+            }
+          }
+        }
+
+        if (fezTrocaCompleta) continue;
+
+        // Se não for levantador (ou não achou vaga de levantador), vai para o time mais desfalcado
+        if (timeDestino == null) {
+          timesIncompletos.sort((a, b) => a.jogadorIds.length.compareTo(b.jogadorIds.length));
+          timeDestino = timesIncompletos.first;
+        }
+
+        final novosIds = [...timeDestino.jogadorIds, atrasado.id];
+        
+        final idx = timesAtualizados.indexWhere((t) => t.id == timeDestino!.id);
+        if (idx != -1) {
+          timesAtualizados[idx] = timeDestino.copyWith(jogadorIds: novosIds);
+        }
+
+        await db.atualizarTimeJogadores(timeDestino.id, novosIds);
+      }
+    } finally {
+      _isAtualizandoTimes = false;
+    }
   }
 
   // ── Header ──────────────────────────────────────────────────────────────────
