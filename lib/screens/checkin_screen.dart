@@ -1,9 +1,8 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
 import '../db.dart';
+import '../design/design.dart';
 import '../models/jogador.dart';
 import '../models/sessao.dart';
 import '../signals.dart';
@@ -13,16 +12,12 @@ class CheckInScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Gradiente e largura de conteúdo vêm do shell (MainScreen).
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF070B18), Color(0xFF0D1F3C), Color(0xFF1A0A2E)],
-          ),
-        ),
-        child: SafeArea(child: Watch((ctx) => _buildConteudo(ctx))),
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        bottom: false,
+        child: Watch((ctx) => _buildConteudo(ctx)),
       ),
     );
   }
@@ -45,37 +40,41 @@ class CheckInScreen extends StatelessWidget {
   // Estado: nenhum rachão iniciado
   // ---------------------------------------------------------------------------
   Widget _buildSemSessao(BuildContext context) {
+    // Aqui a ação é primária de propósito: iniciar o rachão é a única coisa a
+    // fazer nesta tela quando não há sessão. Por isso não usa o SCEmptyState,
+    // cuja ação é secundária por definição.
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.sports_volleyball_rounded,
-              size: 72, color: Colors.white.withValues(alpha: 0.15)),
-          const SizedBox(height: 24),
-          const Text('Nenhum rachão ativo',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Text('Todos os jogadores serão marcados como presentes automaticamente',
-              style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.4), fontSize: 14),
-              textAlign: TextAlign.center),
-          const SizedBox(height: 32),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFFF6B35),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: SCSpace.x10),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.sports_volleyball_rounded,
+              size: 72,
+              color: Colors.white.withValues(alpha: 0.15),
             ),
-            icon: const Icon(Icons.play_arrow_rounded, size: 28),
-            label: const Text('Iniciar Rachão',
-                style:
-                    TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            onPressed: () => _dialogIniciarRachao(context),
-          ),
-        ],
+            const SizedBox(height: SCSpace.x10),
+            const Text('Nenhum rachão ativo', style: SCType.title),
+            const SizedBox(height: SCSpace.x4),
+            Text(
+              'Todos os jogadores serão marcados como presentes automaticamente',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: SCColors.textDisabled,
+                fontSize: SCType.fsBody,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: SCSpace.x11),
+            SCButton(
+              label: 'Iniciar rachão',
+              icon: Icons.play_arrow_rounded,
+              size: SCButtonSize.lg,
+              onPressed: () => _dialogIniciarRachao(context),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -87,104 +86,55 @@ class CheckInScreen extends StatelessWidget {
     final dataFmt = _fmtData(sessao.criadaEm);
     final sessaoId = sessao.id;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 16, 4),
+      padding: const EdgeInsets.only(
+        left: SCSpace.x8,
+        right: SCSpace.x8,
+        top: SCSpace.x9,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Text('Check-in',
-                            style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                letterSpacing: 1.2)),
-                        const SizedBox(width: 10),
-                        _buildModalidadeBadge(sessao),
-                      ],
-                    ),
-                    Watch((ctx) {
-                      final presentes = todosComStatusSignal.value.value
-                              ?.where((j) => j.checkedIn)
-                              .length ??
-                          0;
-                      return Text(
-                        '$dataFmt • $presentes presente${presentes != 1 ? 's' : ''}',
-                        style:
-                            const TextStyle(color: Colors.white54, fontSize: 14),
-                      );
-                    }),
-                  ],
-                ),
-              ),
-              // Botão encerrar sessão
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red.shade300,
-                  side: BorderSide(color: Colors.red.withValues(alpha: 0.4)),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
-                icon: const Icon(Icons.stop_circle_outlined, size: 18),
-                label: const Text('Encerrar', style: TextStyle(fontSize: 13)),
+          Watch((ctx) {
+            final presentes = todosComStatusSignal.value.value
+                    ?.where((j) => j.checkedIn)
+                    .length ??
+                0;
+            return SCScreenHeader(
+              title: 'Check-in',
+              status: '$dataFmt • $presentes '
+                  '${presentes == 1 ? 'presente' : 'presentes'}',
+              trailing: SCButton(
+                label: 'Encerrar',
+                icon: Icons.stop_circle_outlined,
+                variant: SCButtonVariant.outlined,
+                color: SCColors.danger,
+                size: SCButtonSize.sm,
                 onPressed: () => _confirmarEncerramento(context),
               ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          // Ações rápidas: selecionar / desselecionar todos
+            );
+          }),
+          // Modalidade e ações rápidas na mesma fileira: são todos controles de
+          // escopo da sessão, e juntos economizam uma linha de altura.
           Row(
             children: [
-              _buildAcaoRapida(
-                icon: Icons.check_circle_outline,
+              _buildModalidadeBadge(sessao),
+              const SizedBox(width: SCSpace.x5),
+              SCChip(
                 label: 'Todos',
-                color: const Color(0xFF4CAF50),
+                icon: Icons.check_circle_outline,
+                color: SCColors.success,
                 onTap: () => db.checkInTodos(sessaoId),
               ),
-              const SizedBox(width: 10),
-              _buildAcaoRapida(
-                icon: Icons.cancel_outlined,
+              const SizedBox(width: SCSpace.x4),
+              SCChip(
                 label: 'Nenhum',
-                color: Colors.white38,
+                icon: Icons.cancel_outlined,
                 onTap: () => db.checkOutTodos(sessaoId),
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: SCSpace.x3),
         ],
-      ),
-    );
-  }
-
-  Widget _buildAcaoRapida({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 15),
-            const SizedBox(width: 5),
-            Text(label, style: TextStyle(color: color, fontSize: 13)),
-          ],
-        ),
       ),
     );
   }
@@ -200,17 +150,21 @@ class CheckInScreen extends StatelessWidget {
       }
       final lista = estado.value ?? [];
       if (lista.isEmpty) {
-        return Center(
-          child: Text('Nenhum jogador cadastrado',
-              style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.4), fontSize: 16)),
+        return const SCEmptyState(
+          icon: Icons.people_outline,
+          title: 'Nenhum jogador cadastrado',
+          subtitle: 'Cadastre os jogadores na aba Jogadores para poder fazer check-in.',
         );
       }
       return ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        padding: const EdgeInsets.only(
+          left: SCSpace.x8,
+          right: SCSpace.x8,
+          top: SCSpace.x4,
+          bottom: SCLayout.bottomNavClearance,
+        ),
         itemCount: lista.length,
-        itemBuilder: (ctx, i) =>
-            _buildItemJogador(lista[i], sessaoId),
+        itemBuilder: (ctx, i) => _buildItemJogador(lista[i], sessaoId),
       );
     });
   }
@@ -218,109 +172,54 @@ class CheckInScreen extends StatelessWidget {
   Widget _buildItemJogador(JogadorComStatus jcs, int sessaoId) {
     final jogador = jcs.jogador;
     final presente = jcs.checkedIn;
-    final corGenero = jogador.genero == Genero.feminino
-        ? const Color(0xFFE91E8C)
-        : const Color(0xFF2196F3);
-    final bordaColor = presente
-        ? const Color(0xFF4CAF50)
-        : Colors.white.withValues(alpha: 0.12);
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            decoration: BoxDecoration(
-              color: presente
-                  ? const Color(0xFF4CAF50).withValues(alpha: 0.08)
-                  : Colors.white.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: bordaColor, width: presente ? 1.5 : 1),
-            ),
-            child: ListTile(
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              onTap: () => db.toggleCheckIn(sessaoId, jogador.id),
-              leading: Stack(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: corGenero.withValues(alpha: 0.15),
-                      border: Border.all(
-                        color: presente ? const Color(0xFF4CAF50) : corGenero,
-                        width: 2,
-                      ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        jogador.nome[0].toUpperCase(),
-                        style: TextStyle(
-                            color: corGenero,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18),
-                      ),
-                    ),
-                  ),
-                  if (presente)
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: Container(
-                        width: 16,
-                        height: 16,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF4CAF50),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.check,
-                            color: Colors.white, size: 11),
-                      ),
-                    ),
-                ],
-              ),
-              title: Text(
-                jogador.nome,
-                style: TextStyle(
-                    color: presente ? Colors.white : Colors.white70,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 15),
-              ),
-              subtitle: Text(
-                '${jogador.partidasJogadas} partidas  •  ${jogador.nivel.label}',
-                style: const TextStyle(color: Colors.white38, fontSize: 11),
-              ),
-              trailing: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: presente
-                      ? const Color(0xFF4CAF50)
-                      : Colors.white.withValues(alpha: 0.08),
-                  border: Border.all(
-                    color: presente
-                        ? const Color(0xFF4CAF50)
-                        : Colors.white.withValues(alpha: 0.2),
-                  ),
-                ),
-                child: Icon(
-                  presente ? Icons.check : Icons.add,
-                  color: presente ? Colors.white : Colors.white38,
-                  size: 18,
-                ),
-              ),
-            ),
+    return SCPlayerRow(
+      name: jogador.nome,
+      genderColor:
+          jogador.genero == Genero.feminino ? SCColors.female : SCColors.male,
+      // O SCPlayerRow já traduz "marcado" em tint verde, borda 1.5px e selo de
+      // check no avatar — a mesma linguagem de seleção do resto do app.
+      selectable: true,
+      checked: presente,
+      onTap: () => db.toggleCheckIn(sessaoId, jogador.id),
+      badges: [
+        if (jogador.isLevantador) const SCRowBadge('LEV', color: SCColors.setter),
+        SCRowBadge(jogador.nivel.label, color: _corNivel(jogador.nivel)),
+        SCRowBadge(
+          '${jogador.partidasJogadas} '
+          '${jogador.partidasJogadas == 1 ? 'partida' : 'partidas'}',
+          color: SCColors.grey,
+        ),
+      ],
+      trailing: AnimatedContainer(
+        duration: SCFx.durMed,
+        curve: SCFx.ease,
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: presente
+              ? SCColors.success
+              : Colors.white.withValues(alpha: 0.08),
+          border: Border.all(
+            color: presente ? SCColors.success : SCColors.line3,
           ),
+        ),
+        child: Icon(
+          presente ? Icons.check : Icons.add,
+          color: presente ? Colors.white : SCColors.textDisabled,
+          size: 18,
         ),
       ),
     );
   }
+
+  /// Cor do badge de nível, igual à da tela de Jogadores.
+  Color _corNivel(Nivel n) => switch (n) {
+        Nivel.iniciante => SCColors.grey,
+        Nivel.intermediario => SCColors.blue,
+        Nivel.avancado => SCColors.green,
+      };
 
   // ---------------------------------------------------------------------------
   // Badge de modalidade
@@ -331,17 +230,9 @@ class CheckInScreen extends StatelessWidget {
     final label = isAreia
         ? '🏖️ ${sessao.prefixoTime}s'
         : '🏐 Quadra';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: cor.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: cor.withValues(alpha: 0.4)),
-      ),
-      child: Text(label,
-          style: TextStyle(
-              color: cor, fontSize: 11, fontWeight: FontWeight.bold)),
-    );
+    // O emoji aqui é um dos dois casos que o design system permite: 🏐 quadra e
+    // 🏖️ areia, sempre dentro de um badge, nunca decorativo.
+    return SCBadge(label: label, color: cor);
   }
 
   // ---------------------------------------------------------------------------
