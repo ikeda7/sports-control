@@ -1,0 +1,63 @@
+name: ✨ Funcionalidade
+description: Uma ideia ou melhoria para o app
+labels: [feature]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Descreva a **regra do rachão** que você quer que o app respeite. O
+        "como implementar" a gente resolve depois.
+
+  - type: textarea
+    id: problema
+    attributes:
+      label: Que problema isso resolve
+      placeholder: |
+        Quando alguém chega atrasado, hoje a única saída é sortear tudo de
+        novo — e quem já estava jogando perde o time.
+    validations:
+      required: true
+
+  - type: textarea
+    id: comportamento
+    attributes:
+      label: Como deveria funcionar
+      placeholder: |
+        Se houver time incompleto, encaixa o atrasado nele. Se todos estiverem
+        completos, ele entra na fila de rotação sem desmanchar nada.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área afetada
+      multiple: true
+      options:
+        - Jogadores (cadastro)
+        - Check-in
+        - Sorteio / composição de times
+        - Placar / partida
+        - Histórico
+        - Banco de dados
+        - CI / deploy
+    validations:
+      required: true
+
+  - type: dropdown
+    id: prioridade
+    attributes:
+      label: Urgência
+      options:
+        - "Alta — atrapalha o rachão hoje"
+        - "Média — melhoraria bastante"
+        - "Baixa — seria legal ter"
+    validations:
+      required: true
+
+  - type: textarea
+    id: casos-limite
+    attributes:
+      label: Casos limite que você já pensou
+      placeholder: |
+        E se chegarem 2 atrasados? E se o time incompleto já tiver 2 mulheres?
