@@ -40,13 +40,13 @@ jobs:
       - name: Compile drift worker
         run: dart compile js -O2 -o web/drift_worker.dart.js lib/database/drift_worker.dart
 
-      # CanvasKit vem por padrão de www.gstatic.com. O build já copia uma cópia
-      # local para build/web/canvaskit, então apontamos para ela: menos uma
-      # dependência de terceiros no caminho crítico de renderização.
+      # Nota: CanvasKit continua vindo de www.gstatic.com, e está tudo bem —
+      # o gstatic responde com `cross-origin-resource-policy: cross-origin`,
+      # então satisfaz o COEP: require-corp do vercel.json (verificado).
+      # Servir do /canvaskit/ local NÃO se faz por --dart-define nesta versão
+      # do Flutter; exige sobrescrever o web/flutter_bootstrap.js. Ver issue #24.
       - name: Build web
-        run: |
-          flutter build web --release \
-            --dart-define=FLUTTER_WEB_CANVASKIT_URL=/canvaskit/
+        run: flutter build web --release
 
       - name: Verify build output
         run: |
