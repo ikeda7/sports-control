@@ -2,6 +2,22 @@
                        SPORTS CONTROL — LISTA DE TAREFAS (TO-DO)
 ===============================================================================
 
+>>> ESTE ARQUIVO FOI APOSENTADO.
+>>>
+>>> As tarefas pendentes viraram issues no GitHub, onde cada uma tem
+>>> responsável, discussão e um PR que a fecha automaticamente:
+>>>
+>>>     https://github.com/ikeda7/sports-control/issues
+>>>
+>>> O roadmap visual (board com colunas) fica em Projects:
+>>>
+>>>     https://github.com/ikeda7/sports-control/projects
+>>>
+>>> Não adicione tarefas novas aqui — abra uma issue. Tem template pronto
+>>> para bug e para funcionalidade. O porquê está no CONTRIBUTING.md.
+>>>
+>>> O histórico abaixo fica registrado para referência.
+
 -------------------------------------------------------------------------------
 🟢 CONCLUÍDO / IMPLEMENTADO
 -------------------------------------------------------------------------------
@@ -19,23 +35,17 @@
 [x] Placar em tempo real com incremento automático de partidasJogadas ao encerrar.
 
 -------------------------------------------------------------------------------
-🟡 PENDENTE / A FAZER
+🟡 PENDENTE — MIGRADO PARA ISSUES
 -------------------------------------------------------------------------------
-[ ] CHEGADA ATRASADA (Inclusão Tardia no Sorteio sem Re-sortear):
-    - Se os times já foram sorteados e um jogador chegar atrasado (fizer check-in depois):
-    - NÃO re-sortear todos os times do zero.
-    - Se houver algum time incompleto (com menos jogadores que a capacidade), alocar o atrasado nesse time.
-    - Se todos os times já estiverem completos, adicionar o jogador atrasado ao banco/fila de rotação sem desmanchar os times sorteados.
+[ ] CHEGADA ATRASADA (inclusão tardia sem re-sortear) .................. issue #9
+[ ] REGRAS DE COMPOSIÇÃO DE TIME (teto de mulheres, levantadores) ..... issue #10
+[ ] IMPORTAÇÃO DE ARQUIVOS (.txt do dispositivo) ...................... issue #11
+[ ] NOTIFICAÇÕES & FLUXO DE JOGO (aviso ao iniciar a partida) ......... issue #12
+[ ] HISTÓRICO & PLACAR (ordenar e filtrar por data e hora) ............ issue #13
 
-[ ] REGRAS DE COMPOSIÇÃO DE TIME:
-    - Limite de no máximo 2 mulheres por time durante o sorteio.
-    - Levantadores fixos contínuos em cenários de escassez (ex: apenas 2 levantadores para 3+ times jogam todas as partidas rotacionando por empréstimo).
-
-[ ] IMPORTAÇÃO DE ARQUIVOS:
-    - Seleção direta de arquivo `.txt` do dispositivo para carregar lista de nomes.
-
-[ ] NOTIFICAÇÕES & FLUXO DE JOGO:
-    - Mudar o aviso/notificação de substituição de jogador para ser exibido apenas ao iniciar a partida (na aba Placar/Escala) em vez da tela de sorteio.
-
-[ ] HISTÓRICO & PLACAR:
-    - Organizar e filtrar o histórico global de partidas por data e hora na aba de jogos/histórico.
+-------------------------------------------------------------------------------
+🔧 DÍVIDA TÉCNICA — LEVANTADA NA REVISÃO
+-------------------------------------------------------------------------------
+[ ] Aplicar dart format no repositório todo (PR dedicado) ............. issue #14
+[ ] Testes automatizados para o sorteio e a escala .................... issue #15
+[ ] Ativar proteção de branch em master e develop ..................... issue #16
