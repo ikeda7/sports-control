@@ -80,7 +80,7 @@ foi testado de ponta a ponta nesta máquina:
 dart compile js -O2 -o web/drift_worker.dart.js lib/database/drift_worker.dart
 → Compiled 14,780,110 input bytes to 378,435 characters JavaScript in 4.96s
 
-flutter build web --release --dart-define=FLUTTER_WEB_CANVASKIT_URL=/canvaskit/
+flutter build web --release
 → √ Built build\web
 ```
 
@@ -273,7 +273,7 @@ automaticamente, mas localmente você precisa rodar antes:
 
 ```bash
 dart compile js -O2 -o web/drift_worker.dart.js lib/database/drift_worker.dart
-flutter build web --release --dart-define=FLUTTER_WEB_CANVASKIT_URL=/canvaskit/
+flutter build web --release
 ```
 
 ---

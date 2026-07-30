@@ -36,8 +36,8 @@ dart format --output=none --set-exit-if-changed lib test
 # Compilar o worker do Drift  ← OBRIGATÓRIO antes de qualquer build web
 dart compile js -O2 -o web/drift_worker.dart.js lib/database/drift_worker.dart
 
-# Build web (CanvasKit servido localmente em vez de www.gstatic.com)
-flutter build web --release --dart-define=FLUTTER_WEB_CANVASKIT_URL=/canvaskit/
+# Build web
+flutter build web --release
 ```
 
 > **Windows**: requer Developer Mode ativado (`start ms-settings:developers`) para que Flutter crie symlinks de plugins nativos. Sem isso o `flutter pub get` resolve as dependências mas falha no final com `Building with plugins requires symlink support`.
