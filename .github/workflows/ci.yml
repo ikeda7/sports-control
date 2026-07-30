@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [master, develop]
+  push:
+    branches: [master, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Análise e testes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # O código gerado pelo Drift é versionado. Se alguém alterar o schema em
+      # app_database.dart e esquecer de rodar o build_runner, o app compila com
+      # o .g.dart antigo e o bug só aparece em runtime. Aqui regeramos e
+      # comparamos: qualquer divergência derruba o CI.
+      - name: Verify Drift codegen is up to date
+        run: |
+          set -euo pipefail
+          dart run build_runner build --delete-conflicting-outputs
+          if ! git diff --quiet -- 'lib/**/*.g.dart'; then
+            echo "::error::Código gerado desatualizado. Rode: dart run build_runner build --delete-conflicting-outputs"
+            git diff --stat -- 'lib/**/*.g.dart'
+            exit 1
+          fi
+          echo "Codegen do Drift está em sincronia."
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test --reporter=expanded
+
+      # Informativo por enquanto: 12 dos 19 arquivos em lib/ não estão
+      # formatados. Rodar `dart format` no repo todo seria um diff gigante
+      # tocando quase todo arquivo, então isso merece um PR dedicado, num
+      # momento em que ninguém tenha trabalho em andamento. Até lá o passo
+      # reporta sem derrubar o build.
+      - name: Format check (informativo)
+        continue-on-error: true
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### CI"
+            echo ""
+            echo "- Codegen Drift verificado"
+            echo "- \`flutter analyze\`"
+            echo "- \`flutter test\`"
+            echo "- Formatação: informativo (ver log do passo)"
+          } >> "$GITHUB_STEP_SUMMARY"
