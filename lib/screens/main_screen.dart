@@ -1,14 +1,24 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
+import '../design/design.dart';
 import '../signals.dart';
 import 'checkin_screen.dart';
 import 'jogadores_screen.dart';
 import 'placar_screen.dart';
 import 'sorteio_screen.dart';
 
+/// Shell do app: gradiente, largura de conteúdo e navegação.
+///
+/// Estrutura, de fora para dentro:
+/// 1. gradiente preenchendo a viewport inteira (o único fundo do app)
+/// 2. coluna de conteúdo com no máximo 480px, centralizada
+/// 3. `IndexedStack` mantendo as 4 telas vivas na memória
+/// 4. barra de navegação de vidro
+///
+/// Antes existiam dois `Scaffold` aninhados e o fora-do-480 no desktop era
+/// preto chapado em vez do gradiente. Agora o gradiente é da viewport e o
+/// `Scaffold` é um só.
 class MainScreen extends StatelessWidget {
   const MainScreen({super.key});
 
@@ -19,77 +29,55 @@ class MainScreen extends StatelessWidget {
     PlacarScreen(),
   ];
 
+  static const _navItems = [
+    SCNavItem(
+      label: 'Jogadores',
+      icon: Icons.people_outline,
+      activeIcon: Icons.people,
+    ),
+    SCNavItem(
+      label: 'Check-in',
+      icon: Icons.how_to_reg_outlined,
+      activeIcon: Icons.how_to_reg,
+    ),
+    SCNavItem(
+      label: 'Sorteio',
+      icon: Icons.shuffle_outlined,
+      activeIcon: Icons.shuffle,
+    ),
+    SCNavItem(
+      label: 'Placar',
+      icon: Icons.scoreboard_outlined,
+      activeIcon: Icons.scoreboard,
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    // Watch observa tabIndexSignal e reconstrói apenas o Scaffold quando muda.
-    return Watch((context) {
-      final idx = tabIndexSignal.value;
-      // Em telas largas (desktop/web), centraliza e limita a 480px
-      return LayoutBuilder(builder: (context, constraints) {
-        final isWide = constraints.maxWidth > 600;
-        Widget scaffold = Scaffold(
-          // IndexedStack mantém todas as telas na memória (estado preservado ao trocar aba).
-          // Equivalente ao RouterOutlet com keepAlive no Angular.
-          body: IndexedStack(index: idx, children: _telas),
-          bottomNavigationBar: _buildNavBar(idx),
-        );
-        if (!isWide) return scaffold;
-        return Scaffold(
-          backgroundColor: const Color(0xFF070B18),
-          body: Center(
-            child: SizedBox(
-              width: 480,
-              child: scaffold,
-            ),
-          ),
-        );
-      });
-    });
-  }
+    // O gradiente fica fora do Watch: ele nunca muda, não precisa reconstruir
+    // a cada troca de aba.
+    return SCGradientBackground(
+      child: Watch((context) {
+        final idx = tabIndexSignal.value;
 
-  Widget _buildNavBar(int selectedIndex) {
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFF070B18).withValues(alpha: 0.85),
-            border: Border(
-              top: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          body: SCContentWidth(
+            // O IndexedStack precisa de altura definida; sem isso o
+            // SCContentWidth (que alinha no topo) o encolheria.
+            child: SizedBox.expand(
+              child: IndexedStack(index: idx, children: _telas),
             ),
           ),
-          child: NavigationBar(
-            selectedIndex: selectedIndex,
-            onDestinationSelected: (i) => tabIndexSignal.value = i,
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            indicatorColor: const Color(0xFFFF6B35).withValues(alpha: 0.25),
-            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-            destinations: const [
-              NavigationDestination(
-                icon: Icon(Icons.people_outline),
-                selectedIcon: Icon(Icons.people, color: Color(0xFFFF6B35)),
-                label: 'Jogadores',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.how_to_reg_outlined),
-                selectedIcon: Icon(Icons.how_to_reg, color: Color(0xFFFF6B35)),
-                label: 'Check-in',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.shuffle_outlined),
-                selectedIcon: Icon(Icons.shuffle, color: Color(0xFFFF6B35)),
-                label: 'Sorteio',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.scoreboard_outlined),
-                selectedIcon: Icon(Icons.scoreboard, color: Color(0xFFFF6B35)),
-                label: 'Placar',
-              ),
-            ],
+          bottomNavigationBar: SCContentWidth(
+            child: SCBottomNav(
+              items: _navItems,
+              currentIndex: idx,
+              onChanged: (i) => tabIndexSignal.value = i,
+            ),
           ),
-        ),
-      ),
+        );
+      }),
     );
   }
 }
