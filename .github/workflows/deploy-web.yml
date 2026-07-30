@@ -2,13 +2,31 @@ name: Deploy Web → Vercel
 
 on:
   push:
-    branches: [master]
+    branches: [master, develop]
+  pull_request:
+    branches: [master, develop]
+  workflow_dispatch:
+
+# Uma execução por ref. Um push novo cancela o deploy anterior em andamento.
+concurrency:
+  group: deploy-web-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # Rede de segurança: em 2026-07-24 um `npx vercel@latest` travou e o job
+    # só morreu no limite padrão de 6h. Nunca mais.
+    timeout-minutes: 25
+
+    env:
+      # A CLI da Vercel lê estes dois nomes exatos e se vincula ao projeto
+      # sem precisar de `vercel link` interativo.
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -22,16 +40,95 @@ jobs:
       - name: Compile drift worker
         run: dart compile js -O2 -o web/drift_worker.dart.js lib/database/drift_worker.dart
 
+      # CanvasKit vem por padrão de www.gstatic.com. O build já copia uma cópia
+      # local para build/web/canvaskit, então apontamos para ela: menos uma
+      # dependência de terceiros no caminho crítico de renderização.
       - name: Build web
-        run: flutter build web --release
+        run: |
+          flutter build web --release \
+            --dart-define=FLUTTER_WEB_CANVASKIT_URL=/canvaskit/
+
+      - name: Verify build output
+        run: |
+          set -euo pipefail
+          for f in index.html main.dart.js flutter_bootstrap.js vercel.json \
+                   sqlite3.wasm drift_worker.dart.js canvaskit/canvaskit.wasm; do
+            if [ ! -f "build/web/$f" ]; then
+              echo "::error::Artefato ausente em build/web: $f"
+              exit 1
+            fi
+          done
+          echo "Artefatos OK ($(du -sh build/web | cut -f1))"
+
+      # Instalamos a CLI globalmente em vez de usar `npx vercel@...`:
+      # o npx pode parar para pedir confirmação de instalação e travar o job.
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
 
       - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          working-directory: ./build/web
-          vercel-version: 'latest'
-          vercel-args: '--prod'
+        id: deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.ref }}" = "refs/heads/master" ]; then
+            PROD_FLAG="--prod"
+            echo "Ambiente: PRODUÇÃO"
+          else
+            PROD_FLAG=""
+            echo "Ambiente: PREVIEW (${{ github.ref_name }})"
+          fi
 
+          # --archive=tgz envia um único tarball; o build web tem centenas de
+          # arquivos e o upload individual é lento e frágil.
+          URL=$(vercel deploy ./build/web \
+            --token="$VERCEL_TOKEN" \
+            --archive=tgz \
+            --yes \
+            $PROD_FLAG)
+
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Deploy publicado em: $URL"
+
+      - name: Smoke test deployment
+        # Só em produção. URLs de preview ficam atrás do Deployment Protection
+        # da Vercel, que responde 302 para uma tela de login SSO — não dá para
+        # validar sem um bypass token, e o 302 não significa deploy quebrado.
+        if: github.ref == 'refs/heads/master'
+        run: |
+          set -euo pipefail
+          TARGET="https://sportscontrol.vercel.app"
+          echo "Verificando $TARGET"
+          for path in / /main.dart.js /flutter_bootstrap.js /sqlite3.wasm; do
+            CODE=$(curl -sS -o /dev/null -w '%{http_code}' --retry 5 --retry-delay 3 \
+                     --retry-all-errors "$TARGET$path")
+            echo "  $path -> $CODE"
+            if [ "$CODE" != "200" ]; then
+              echo "::error::$TARGET$path respondeu $CODE (esperado 200)"
+              exit 1
+            fi
+          done
+          echo "Smoke test OK"
+
+      - name: Preview pronto
+        if: github.ref != 'refs/heads/master'
+        env:
+          URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          echo "Preview publicado: $URL"
+          echo "Se pedir login, é o Deployment Protection da Vercel — entre com"
+          echo "a conta dona do projeto, ou desative em Settings > Deployment"
+          echo "Protection para o time conseguir abrir o preview sem conta."
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Deploy Web"
+            echo ""
+            echo "| Item | Valor |"
+            echo "| --- | --- |"
+            echo "| Ref | \`${{ github.ref_name }}\` |"
+            echo "| Ambiente | ${{ github.ref == 'refs/heads/master' && 'produção' || 'preview' }} |"
+            echo "| URL | ${{ steps.deploy.outputs.url || 'n/d' }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
