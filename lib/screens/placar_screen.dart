@@ -1,15 +1,16 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
 import '../db.dart';
+import '../design/design.dart';
 import '../models/jogador.dart';
 import '../models/partida.dart';
 import '../signals.dart';
 
-const _corA = Color(0xFFFF6B35); // laranja — Time A
-const _corB = Color(0xFF00BCD4); // ciano   — Time B
+// Cores de time 1 e 2 do design system. Referência direta às constantes porque
+// indexar uma lista const não é expressão constante em Dart.
+const _corA = SCColors.orange; // Time A
+const _corB = SCColors.cyan; // Time B
 
 class PlacarScreen extends StatefulWidget {
   const PlacarScreen({super.key});
@@ -24,16 +25,12 @@ class _PlacarScreenState extends State<PlacarScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Gradiente e largura de conteúdo vêm do shell (MainScreen).
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF070B18), Color(0xFF0D1F3C), Color(0xFF1A0A2E)],
-          ),
-        ),
-        child: SafeArea(child: Watch((ctx) => _buildConteudo(ctx))),
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        bottom: false,
+        child: Watch((ctx) => _buildConteudo(ctx)),
       ),
     );
   }
@@ -61,7 +58,13 @@ class _PlacarScreenState extends State<PlacarScreen> {
         _buildHeader(partida),
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            padding: const EdgeInsets.only(
+              left: SCSpace.x8,
+              right: SCSpace.x8,
+              // Folga para a barra de navegação de vidro não cobrir o último
+              // item do histórico.
+              bottom: SCLayout.bottomNavClearance,
+            ),
             child: Column(
               children: [
                 if (sessao == null)
@@ -70,8 +73,8 @@ class _PlacarScreenState extends State<PlacarScreen> {
                   _buildPlacarAtivo(context, partida, jogMap)
                 else
                   _buildSemPartida(),
-                  
-                const SizedBox(height: 24),
+
+                const SizedBox(height: SCSpace.x10),
                 _buildHistorico(historicoAtivo, jogMap),
               ],
             ),
@@ -85,27 +88,19 @@ class _PlacarScreenState extends State<PlacarScreen> {
   // Header
   // ---------------------------------------------------------------------------
   Widget _buildHeader(Partida? partida) {
+    final emJogo = partida != null;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Placar',
-              style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: 1.2)),
-          Text(
-            partida != null ? 'Partida em andamento' : 'Aguardando partida',
-            style: TextStyle(
-              color: partida != null
-                  ? const Color(0xFF4CAF50)
-                  : Colors.white38,
-              fontSize: 14,
-            ),
-          ),
-        ],
+      padding: const EdgeInsets.only(
+        left: SCSpace.x8,
+        right: SCSpace.x8,
+        top: SCSpace.x9,
+      ),
+      child: SCScreenHeader(
+        title: 'Placar',
+        status: emJogo ? 'Partida em andamento' : 'Aguardando partida',
+        // Verde quando há jogo rolando: é o estado que o organizador confere de
+        // relance no meio da quadra.
+        statusColor: emJogo ? SCColors.success : SCColors.textDisabled,
       ),
     );
   }
@@ -114,22 +109,10 @@ class _PlacarScreenState extends State<PlacarScreen> {
   // Sem sessão
   // ---------------------------------------------------------------------------
   Widget _buildSemSessao() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.scoreboard_outlined,
-              size: 64, color: Colors.white.withValues(alpha: 0.15)),
-          const SizedBox(height: 16),
-          const Text('Nenhum rachão ativo',
-              style: TextStyle(
-                  color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          Text('Inicie o rachão na aba Check-in',
-              style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.4), fontSize: 14)),
-        ],
-      ),
+    return const SCEmptyState(
+      icon: Icons.scoreboard_outlined,
+      title: 'Nenhum rachão ativo',
+      subtitle: 'Inicie o rachão na aba Check-in',
     );
   }
 
@@ -137,25 +120,11 @@ class _PlacarScreenState extends State<PlacarScreen> {
   // Sem partida ativa
   // ---------------------------------------------------------------------------
   Widget _buildSemPartida() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 40),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.sports_volleyball_rounded,
-                size: 52, color: Colors.white.withValues(alpha: 0.15)),
-            const SizedBox(height: 16),
-            const Text('Nenhuma partida em andamento',
-                style: TextStyle(color: Colors.white70, fontSize: 16)),
-            const SizedBox(height: 8),
-            Text('Sorteie os times e toque em "Iniciar Partida"',
-                style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.35),
-                    fontSize: 13)),
-          ],
-        ),
-      ),
+    return const SCEmptyState(
+      icon: Icons.sports_volleyball_rounded,
+      iconSize: 52,
+      title: 'Nenhuma partida em andamento',
+      subtitle: 'Sorteie os times e toque em "Iniciar" na aba Sorteio',
     );
   }
 
@@ -192,39 +161,54 @@ class _PlacarScreenState extends State<PlacarScreen> {
         .where((n) => n.isNotEmpty)
         .toList();
 
+    // Aviso de empréstimo: âmbar é a cor de "substituição" no design system.
     Widget? warningWidget;
     if (emprestadosA.isNotEmpty || emprestadosB.isNotEmpty) {
-      warningWidget = Container(
-        margin: const EdgeInsets.only(bottom: 16, left: 16, right: 16),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFF9800).withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFFF9800).withValues(alpha: 0.3)),
+      warningWidget = GlassCard(
+        tint: SCColors.tintStrong(SCColors.warning),
+        borderColor: SCColors.border(SCColors.warning),
+        radius: SCRadius.lg,
+        margin: const EdgeInsets.only(bottom: SCSpace.x8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: SCSpace.x8,
+          vertical: SCSpace.x6,
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.swap_horizontal_circle_outlined, color: Color(0xFFFF9800)),
-            const SizedBox(width: 12),
+            const Icon(
+              Icons.swap_horizontal_circle_outlined,
+              color: SCColors.warning,
+            ),
+            const SizedBox(width: SCSpace.x6),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Jogadores Emprestados',
-                    style: TextStyle(color: Color(0xFFFF9800), fontWeight: FontWeight.bold, fontSize: 14),
+                    'Jogadores emprestados',
+                    style: TextStyle(
+                      color: SCColors.warning,
+                      fontWeight: FontWeight.w700,
+                      fontSize: SCType.fsBody,
+                    ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: SCSpace.x2),
                   if (emprestadosA.isNotEmpty)
                     Text(
                       '${partida.timeANome}: ${emprestadosA.join(', ')}',
-                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                      style: TextStyle(
+                        color: SCColors.textSecondary,
+                        fontSize: SCType.fsBodySm,
+                      ),
                     ),
                   if (emprestadosB.isNotEmpty)
                     Text(
                       '${partida.timeBNome}: ${emprestadosB.join(', ')}',
-                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                      style: TextStyle(
+                        color: SCColors.textSecondary,
+                        fontSize: SCType.fsBodySm,
+                      ),
                     ),
                 ],
               ),
@@ -238,169 +222,120 @@ class _PlacarScreenState extends State<PlacarScreen> {
       children: [
         ?warningWidget,
         // ── PLACAR PRINCIPAL ──────────────────────────────────────────────
-        ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-              ),
-              child: Column(
-                children: [
-                  // Cabeçalho times
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(partida.timeANome,
-                              style: const TextStyle(
-                                  color: _corA,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold),
-                              textAlign: TextAlign.center),
-                        ),
-                        const SizedBox(
-                          width: 60,
-                          child: Center(
-                            child: Text('vs',
-                                style: TextStyle(
-                                    color: Colors.white38, fontSize: 14)),
+        GlassCard(
+          radius: SCRadius.xxl,
+          blur: SCFx.blurLg,
+          tint: Colors.white.withValues(alpha: 0.06),
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              // Cabeçalho times
+              Padding(
+                padding: const EdgeInsets.only(
+                  left: SCSpace.x9,
+                  right: SCSpace.x9,
+                  top: SCSpace.x8,
+                  bottom: SCSpace.x4,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(child: _nomeTime(partida.timeANome, _corA)),
+                    SizedBox(
+                      width: 50,
+                      child: Center(
+                        child: Text(
+                          'vs',
+                          style: TextStyle(
+                            color: SCColors.textFaint,
+                            fontSize: SCType.fsBody,
                           ),
                         ),
-                        Expanded(
-                          child: Text(partida.timeBNome,
-                              style: const TextStyle(
-                                  color: _corB,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold),
-                              textAlign: TextAlign.center),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-
-                  // PLACARES GRANDES + botões +/-
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 8),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: _buildPlacarTime(
-                              partida.placarA, partida.id, true, _corA),
-                        ),
-                        Container(
-                          width: 1,
-                          height: 80,
-                          color: Colors.white.withValues(alpha: 0.1),
-                        ),
-                        Expanded(
-                          child: _buildPlacarTime(
-                              partida.placarB, partida.id, false, _corB),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Listas de jogadores dos times
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(child: _buildListaJogadores(timeA, _corA)),
-                        const SizedBox(width: 12),
-                        Expanded(child: _buildListaJogadores(timeB, _corB)),
-                      ],
-                    ),
-                  ),
-                ],
+                    Expanded(child: _nomeTime(partida.timeBNome, _corB)),
+                  ],
+                ),
               ),
-            ),
+
+              // PLACARES GRANDES + botões +/-
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: SCSpace.x9,
+                  vertical: SCSpace.x4,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: SCScoreCounter(
+                        score: partida.placarA,
+                        color: _corA,
+                        onIncrement: () =>
+                            db.incrementarPlacar(partida.id, isTimeA: true),
+                        onDecrement: () =>
+                            db.decrementarPlacar(partida.id, isTimeA: true),
+                      ),
+                    ),
+                    Container(width: 1, height: 80, color: SCColors.line1),
+                    Expanded(
+                      child: SCScoreCounter(
+                        score: partida.placarB,
+                        color: _corB,
+                        onIncrement: () =>
+                            db.incrementarPlacar(partida.id, isTimeA: false),
+                        onDecrement: () =>
+                            db.decrementarPlacar(partida.id, isTimeA: false),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Listas de jogadores dos times
+              Padding(
+                padding: const EdgeInsets.only(
+                  left: SCSpace.x8,
+                  right: SCSpace.x8,
+                  top: SCSpace.x4,
+                  bottom: SCSpace.x8,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: _buildListaJogadores(timeA, _corA)),
+                    const SizedBox(width: SCSpace.x6),
+                    Expanded(child: _buildListaJogadores(timeB, _corB)),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
 
-        const SizedBox(height: 16),
+        const SizedBox(height: SCSpace.x8),
 
         // ── BOTÃO ENCERRAR ────────────────────────────────────────────────
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.red.shade300,
-              side: BorderSide(color: Colors.red.withValues(alpha: 0.4)),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-            ),
-            icon: const Icon(Icons.stop_circle_outlined),
-            label: const Text('Encerrar Partida',
-                style:
-                    TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-            onPressed: () => _confirmarEncerramento(context, partida),
-          ),
+        SCButton(
+          label: 'Encerrar partida',
+          icon: Icons.stop_circle_outlined,
+          variant: SCButtonVariant.outlined,
+          color: SCColors.danger,
+          fullWidth: true,
+          onPressed: () => _confirmarEncerramento(context, partida),
         ),
       ],
     );
   }
 
-  Widget _buildPlacarTime(
-      int placar, int partidaId, bool isTimeA, Color cor) {
-    return Column(
-      children: [
-        // Número gigante do placar
-        Text(
-          '$placar',
-          style: TextStyle(
-            color: cor,
-            fontSize: 72,
-            fontWeight: FontWeight.bold,
-            height: 1,
-          ),
-        ),
-        const SizedBox(height: 12),
-        // Botões +/-
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _buildScoreBtn(
-              icon: Icons.remove_rounded,
-              color: Colors.white38,
-              onTap: () => db.decrementarPlacar(partidaId, isTimeA: isTimeA),
-            ),
-            const SizedBox(width: 16),
-            _buildScoreBtn(
-              icon: Icons.add_rounded,
-              color: cor,
-              onTap: () => db.incrementarPlacar(partidaId, isTimeA: isTimeA),
-              large: true,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildScoreBtn({
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-    bool large = false,
-  }) {
-    final size = large ? 44.0 : 32.0;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: color.withValues(alpha: 0.15),
-          border: Border.all(color: color.withValues(alpha: 0.4)),
-        ),
-        child: Icon(icon, color: color, size: large ? 24 : 18),
+  Widget _nomeTime(String nome, Color cor) {
+    return Text(
+      nome,
+      textAlign: TextAlign.center,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        color: cor,
+        fontSize: SCType.fsSubtitle,
+        fontWeight: FontWeight.w700,
       ),
     );
   }
@@ -516,48 +451,35 @@ class _PlacarScreenState extends State<PlacarScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 16),
-        Center(
-          child: SegmentedButton<bool>(
-            segments: const [
-              ButtonSegment(
-                value: false,
-                label: Text('Sessão Atual'),
-                icon: Icon(Icons.sports_volleyball),
-              ),
-              ButtonSegment(
-                value: true,
-                label: Text('Global'),
-                icon: Icon(Icons.public),
-              ),
-            ],
-            selected: {_mostrarGlobal},
-            onSelectionChanged: (set) {
-              setState(() => _mostrarGlobal = set.first);
-            },
-            style: ButtonStyle(
-              backgroundColor: WidgetStateProperty.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) {
-                  return const Color(0xFFFF9800).withValues(alpha: 0.2);
-                }
-                return Colors.transparent;
-              }),
-              foregroundColor: WidgetStateProperty.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) {
-                  return const Color(0xFFFF9800);
-                }
-                return Colors.white70;
-              }),
+        const SizedBox(height: SCSpace.x8),
+        // Escopo do histórico. Trocado de âmbar para laranja: no design system
+        // âmbar significa aviso/substituição, e isto é só um seletor.
+        SCSegmentedTabs<bool>(
+          value: _mostrarGlobal,
+          onChanged: (v) => setState(() => _mostrarGlobal = v),
+          segments: const [
+            SCSegment(
+              value: false,
+              label: 'Sessão atual',
+              icon: Icons.sports_volleyball,
             ),
-          ),
+            SCSegment(value: true, label: 'Global', icon: Icons.public),
+          ],
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: SCSpace.x10),
         if (historico.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 32),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: SCSpace.x11),
             child: Center(
-              child: Text('Nenhuma partida encontrada.',
-                  style: TextStyle(color: Colors.white54, fontSize: 14)),
+              child: Text(
+                _dataFiltro != null
+                    ? 'Nenhuma partida nesta data.'
+                    : 'Nenhuma partida encerrada ainda.',
+                style: TextStyle(
+                  color: SCColors.textTertiary,
+                  fontSize: SCType.fsBodySm,
+                ),
+              ),
             ),
           )
         else
@@ -581,91 +503,89 @@ class _PlacarScreenState extends State<PlacarScreen> {
     final min = data.minute.toString().padLeft(2, '0');
     final dataFormatada = '$dia/$mes $hora:$min';
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-          child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(12),
-              border:
-                  Border.all(color: Colors.white.withValues(alpha: 0.08)),
-            ),
-            child: Row(
-              children: [
-                Text('#$num • $dataFormatada',
-                    style: const TextStyle(
-                        color: Colors.white38, fontSize: 12)),
-                const SizedBox(width: 12),
-                // Time A
-                Expanded(
-                  child: Text(
-                    partida.timeANome,
-                    style: TextStyle(
-                      color: venceuA ? _corA : Colors.white54,
-                      fontSize: 12,
-                      fontWeight: venceuA
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                // Placar
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: RichText(
-                    text: TextSpan(
-                      children: [
-                        TextSpan(
-                          text: '${partida.placarA}',
-                          style: TextStyle(
-                            color: venceuA ? _corA : Colors.white54,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const TextSpan(
-                          text: ' × ',
-                          style: TextStyle(
-                              color: Colors.white38, fontSize: 14),
-                        ),
-                        TextSpan(
-                          text: '${partida.placarB}',
-                          style: TextStyle(
-                            color: venceuB ? _corB : Colors.white54,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                // Time B
-                Expanded(
-                  child: Text(
-                    partida.timeBNome,
-                    style: TextStyle(
-                      color: venceuB ? _corB : Colors.white54,
-                      fontSize: 12,
-                      fontWeight: venceuB
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.right,
-                  ),
-                ),
-              ],
+    // O time vencedor fica na cor dele e em bold; o perdedor fica apagado. É o
+    // que permite ler o resultado de relance, sem procurar o número.
+    return GlassCard(
+      radius: SCRadius.lg,
+      blur: SCFx.blurSm,
+      tint: SCColors.surface1,
+      borderColor: SCColors.line1,
+      margin: const EdgeInsets.only(bottom: SCSpace.x4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: SCSpace.x8,
+        vertical: SCSpace.x5,
+      ),
+      child: Row(
+        children: [
+          Text(
+            '#$num • $dataFormatada',
+            style: TextStyle(
+              color: SCColors.textFaint,
+              fontSize: SCType.fsCaption,
             ),
           ),
-        ),
+          const SizedBox(width: SCSpace.x6),
+          Expanded(child: _nomeHistorico(partida.timeANome, _corA, venceuA)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: SCSpace.x6),
+            child: RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: '${partida.placarA}',
+                    style: TextStyle(
+                      color: venceuA ? _corA : SCColors.textTertiary,
+                      fontSize: SCType.fsBodyLg,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  TextSpan(
+                    text: ' × ',
+                    style: TextStyle(
+                      color: SCColors.textFaint,
+                      fontSize: SCType.fsBody,
+                    ),
+                  ),
+                  TextSpan(
+                    text: '${partida.placarB}',
+                    style: TextStyle(
+                      color: venceuB ? _corB : SCColors.textTertiary,
+                      fontSize: SCType.fsBodyLg,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Expanded(
+            child: _nomeHistorico(
+              partida.timeBNome,
+              _corB,
+              venceuB,
+              alinharDireita: true,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _nomeHistorico(
+    String nome,
+    Color cor,
+    bool venceu, {
+    bool alinharDireita = false,
+  }) {
+    return Text(
+      nome,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      textAlign: alinharDireita ? TextAlign.right : TextAlign.left,
+      style: TextStyle(
+        color: venceu ? cor : SCColors.textTertiary,
+        fontSize: SCType.fsCaption,
+        fontWeight: venceu ? FontWeight.w700 : FontWeight.w400,
       ),
     );
   }
