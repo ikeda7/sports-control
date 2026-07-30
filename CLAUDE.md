@@ -89,7 +89,15 @@ Toda mutação no `AppDatabase` dispara automaticamente o Stream → atualiza os
 
 ### Algoritmo de sorteio (SorteioScreen)
 
-Snake-draft por `pesoTecnico`: embaralha aleatoriamente, ordena por peso desc, distribui os `N × porTime` melhores em padrão ABBA por rodada para equalizar as somas. Gera N times (N = `checkins.length ~/ porTime`).
+Snake-draft por `pesoTecnico`, em `_sortearTimes(presentes, porTime, modalidade)`. Três detalhes que não são óbvios:
+
+1. **`n = (presentes.length / porTime).ceil()`** — arredonda para **cima**, não para baixo. Com 13 presentes e `porTime = 6` saem 3 times, não 2. Retorna lista vazia se `n < 2`.
+2. **Regra de Ocupação Total: ninguém fica no banco.** Times incompletos são preenchidos com jogadores *emprestados* de outros times, marcados com `isEmprestado: true` (uma cópia via `copyWith`, o jogador continua no time original). A prioridade de empréstimo é quem tem menos `partidasJogadas`.
+3. **As regras de levantador e de mulher só valem na quadra.** Todo o bloco está sob `if (modalidade == Modalidade.quadra)` — na areia (duplas/trios) não há garantia de levantador nem de mulher por time, o que é intencional.
+
+Ordem de alocação na quadra: levantadores primeiro (menos jogos têm prioridade) → ao menos 1 mulher por time (melhores por `pesoTecnico`) → restantes em snake-draft. Ao completar times, um time sem levantador recebe um levantador emprestado antes de qualquer outro candidato.
+
+> Ainda **não** existe teto de mulheres por time (só piso de 1) nem tratamento de "levantadores fixos contínuos" na escassez — ver issue #10.
 
 A escala round-robin é gerada pela função `_gerarEscala(n)`: todos os pares únicos reordenados para minimizar partidas consecutivas do mesmo time.
 

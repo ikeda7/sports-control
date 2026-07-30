@@ -35,13 +35,29 @@
 [x] Placar em tempo real com incremento automático de partidasJogadas ao encerrar.
 
 -------------------------------------------------------------------------------
-🟡 PENDENTE — MIGRADO PARA ISSUES
+🟡 REALMENTE PENDENTE — MIGRADO PARA ISSUES
 -------------------------------------------------------------------------------
 [ ] CHEGADA ATRASADA (inclusão tardia sem re-sortear) .................. issue #9
 [ ] REGRAS DE COMPOSIÇÃO DE TIME (teto de mulheres, levantadores) ..... issue #10
 [ ] IMPORTAÇÃO DE ARQUIVOS (.txt do dispositivo) ...................... issue #11
-[ ] NOTIFICAÇÕES & FLUXO DE JOGO (aviso ao iniciar a partida) ......... issue #12
-[ ] HISTÓRICO & PLACAR (ordenar e filtrar por data e hora) ............ issue #13
+[ ] RESET AO ENCERRAR RACHÃO + check-in obrigatório .................. issue #18
+
+-------------------------------------------------------------------------------
+🟢 ESTAVA MARCADO COMO PENDENTE AQUI, MAS JÁ ESTÁ PRONTO
+-------------------------------------------------------------------------------
+Auditoria feita contra o código e o histórico de commits. Este arquivo estava
+desatualizado; a issue #4 do parceiro estava correta.
+
+[x] NOTIFICAÇÕES & FLUXO DE JOGO (aviso ao iniciar a partida) ..... issue #12 ✔
+    Implementado no PR #5 (branch "feat--Notificação-e-fluxo-de-jogo").
+    O card "Jogadores Emprestados" está em placar_screen.dart:195.
+
+[x] HISTÓRICO & PLACAR (filtrar por data e hora) .................. issue #13 ✔
+    Implementado no PR #5. Filtro `_dataFiltro` em placar_screen.dart:23.
+
+[x] VÔLEI DE AREIA — duplas e trios com porTime dinâmico .............. item 7 ✔
+    Implementado no commit f74bb05 (11/04) + migração v8 do schema.
+    O sorteio respeita `porTime` (2 ou 3 na areia), não fixa 6.
 
 -------------------------------------------------------------------------------
 🔧 DÍVIDA TÉCNICA — LEVANTADA NA REVISÃO

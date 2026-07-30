@@ -98,7 +98,8 @@ List<List<Jogador>> _sortearTimes(
     timesFixos[fillOrder[i]].add(restantes[i]);
   }
 
-  // 4. Criação Dinâmica Das Vagas Completas (Retorna sempre 6)
+  // 4. Criação Dinâmica Das Vagas Completas (completa até porTime, não até 6:
+  //    na areia porTime é 2 ou 3)
   final timesCompletos = <List<Jogador>>[];
   for (int i = 0; i < n; i++) {
     final fixos = timesFixos[i];
