@@ -14,8 +14,19 @@ dart run build_runner build --delete-conflicting-outputs   # após mexer no sche
 flutter run -d edge                                # ← seu único alvo funcional agora
 ```
 
+Para abrir no **Opera** em vez do Edge, veja
+[Navegador](#4-navegador--usando-opera-em-vez-do-edge) — resumo:
+
+```powershell
+$env:CHROME_EXECUTABLE = "C:\Users\Lucas\AppData\Local\Programs\Opera GX\opera.exe"
+flutter run -d chrome
+```
+
 `flutter run -d windows` **não funciona** na máquina do Lucas ainda — falta o
 Visual Studio. Detalhes abaixo.
+
+> **Scripts `.sh` no Windows:** use o **Git Bash**, não o `bash` do PATH — este
+> aponta para o WSL. Ver [Rodando scripts .sh](#rodando-scripts-sh-no-windows).
 
 ---
 
@@ -79,22 +90,38 @@ Funciona. Você consegue trabalhar hoje, sem instalar nada, usando `-d edge`.
 
 ## Consertando o ambiente, em ordem de retorno
 
-### 1. Developer Mode — 30 segundos, faça agora
+### 1. Developer Mode — 30 segundos
 
-```powershell
-start ms-settings:developers
-```
+**O que é esse `start ms-settings:developers`?** É só um atalho para abrir uma
+tela das Configurações do Windows. Não instala nada, não roda script. O
+`ms-settings:` é um esquema de URL do Windows, igual `https:` mas para abrir
+telas de configuração.
 
-Ligue **Modo do desenvolvedor**. Sem isso o `flutter pub get` resolve as
-dependências e depois falha no fim:
+**Como usar:** aperte `Win + R`, cole `ms-settings:developers` e dê Enter.
+(No PowerShell ou no cmd, o comando é `start ms-settings:developers`.)
+
+Vai abrir **Configurações → Sistema → Para desenvolvedores**. Ligue a chave
+**"Modo do desenvolvedor"** e confirme no aviso que aparece.
+
+Se preferir clicar: *Configurações → Sistema → Para desenvolvedores*.
+
+**Por quê.** Sem isso o `flutter pub get` resolve as dependências e depois falha
+no final:
 
 ```
 Building with plugins requires symlink support.
 Please enable Developer Mode in your system settings.
 ```
 
-O Flutter precisa criar symlinks para os plugins nativos. É chato porque o erro
-vem *depois* do sucesso da resolução, então parece que funcionou.
+O Flutter cria *symlinks* (atalhos de sistema) para os plugins nativos, e o
+Windows só permite isso sem privilégio de administrador com o Modo do
+desenvolvedor ligado. É confuso porque o erro vem **depois** de tudo parecer ter
+dado certo.
+
+> **Não é bloqueante para trabalhar no web.** Verificado nesta máquina: mesmo com
+> esse erro no fim do `pub get`, o `flutter analyze` e o `flutter build web`
+> funcionaram. Ligar o Modo do desenvolvedor só elimina o erro e é pré-requisito
+> para o alvo Windows depois que você instalar o Visual Studio.
 
 ### 2. Visual Studio — para voltar a rodar no Windows desktop
 
@@ -130,13 +157,74 @@ Se já tiver o SDK em outro lugar:
 flutter config --android-sdk "C:\caminho\para\Android\Sdk"
 ```
 
-### 4. Chrome — opcional
+### 4. Navegador — usando Opera em vez do Edge
 
-O Edge atende. Se preferir o Chrome, instale e ele é detectado sozinho. Para
-apontar manualmente:
+O Flutter não tem um device `opera`. Os alvos web são `chrome`, `edge` e
+`web-server`. Mas o Opera é Chromium por baixo, então dá para usá-lo de duas
+formas.
+
+#### Opção A — apontar o device `chrome` para o Opera (hot reload funciona)
+
+O device `chrome` do Flutter usa a variável `CHROME_EXECUTABLE`. Aponte para o
+Opera e rode com `-d chrome`:
 
 ```powershell
-$env:CHROME_EXECUTABLE = "C:\Program Files\Google\Chrome\Application\chrome.exe"
+$env:CHROME_EXECUTABLE = "C:\Users\Lucas\AppData\Local\Programs\Opera GX\opera.exe"
+flutter run -d chrome
+```
+
+Verificado nesta máquina — com a variável definida, o `flutter devices` passa a
+listar:
+
+```
+Chrome (web)  • chrome  • web-javascript • unknown
+```
+
+O `unknown` na versão é normal: o Flutter não sabe ler a versão do Opera, mas
+lança o navegador normalmente.
+
+**Para não repetir isso a cada terminal**, defina de forma permanente (uma vez
+só, depois reabra o terminal):
+
+```powershell
+[Environment]::SetEnvironmentVariable(
+  "CHROME_EXECUTABLE",
+  "C:\Users\Lucas\AppData\Local\Programs\Opera GX\opera.exe",
+  "User")
+```
+
+> Se você usa o Opera normal (não GX), o caminho costuma ser
+> `%LOCALAPPDATA%\Programs\Opera\opera.exe`. Confirme com:
+> `Get-ChildItem "$env:LOCALAPPDATA\Programs" -Filter opera.exe -Recurse -Depth 2`
+
+**Ressalva honesta:** o hot reload e o debug do Flutter conversam com o navegador
+pelo protocolo DevTools do Chromium. No Opera isso geralmente funciona, mas não
+é combinação testada pelo time do Flutter — se o hot reload começar a engasgar,
+use a opção B ou volte para o Edge (`-d edge`), que é suportado oficialmente.
+
+#### Opção B — `web-server` e abrir no navegador que quiser
+
+O caminho mais robusto. O Flutter não abre navegador nenhum, só serve e te dá a
+URL:
+
+```bash
+flutter run -d web-server
+```
+
+Ele imprime algo como `http://localhost:PORTA`. Cole no Opera. Funciona em
+qualquer navegador, sem variável de ambiente.
+
+O custo é que o hot reload por atalho de teclado não é automático — você aperta
+`r` no terminal e dá F5 na aba. Para trabalhar em UI o dia todo, a opção A é mais
+confortável; para só conferir algo, a B resolve.
+
+#### Se quiser o Chrome de verdade
+
+Instale e o Flutter detecta sozinho — mas aí **remova** o `CHROME_EXECUTABLE`,
+senão ele continua abrindo o Opera:
+
+```powershell
+[Environment]::SetEnvironmentVariable("CHROME_EXECUTABLE", $null, "User")
 ```
 
 ---
@@ -190,6 +278,34 @@ flutter build web --release --dart-define=FLUTTER_WEB_CANVASKIT_URL=/canvaskit/
 
 ---
 
+## Rodando scripts `.sh` no Windows
+
+Se você rodar um script do repo e ver isto:
+
+```
+C:\...\sportscontrol>bash scripts/setup-roadmap.sh
+<3>WSL (9 - Relay) ERROR: CreateProcessCommon:818: execvpe(/bin/bash) failed: No such file or directory
+```
+
+O problema não é o script. É que `bash` no PATH do Windows resolve para
+`C:\WINDOWS\system32\bash.exe`, que é o **atalho do WSL** — e o WSL não tem
+distro/bash instalado nesta máquina. Ele tenta executar `/bin/bash` dentro de um
+Linux que não existe.
+
+**Solução:** use o Git Bash, que está instalado:
+
+```powershell
+& "C:\Program Files\Git\bin\bash.exe" scripts/setup-roadmap.sh
+```
+
+Ou abra o **Git Bash** pelo menu Iniciar, navegue até o projeto e rode
+`bash scripts/setup-roadmap.sh` normalmente — lá o `bash` é o do Git.
+
+> **No caso específico do `setup-roadmap.sh`, você não precisa rodar.** O board
+> já foi criado e as issues já estão nele:
+> <https://github.com/users/ikeda7/projects/3>. O script é idempotente e serve
+> para, mais tarde, jogar issues novas no board de uma vez.
+
 ## Erros que você vai ver e o que significam
 
 | Mensagem | Tradução |
@@ -201,6 +317,8 @@ flutter build web --release --dart-define=FLUTTER_WEB_CANVASKIT_URL=/canvaskit/
 | `Unexpected wasm dry run failure (252)` | **Aviso, não erro.** O build JS conclui normal. Silencie com `--no-wasm-dry-run` |
 | `Unable to locate Android SDK` | Só afeta `-d android` |
 | CI reclamando de codegen desatualizado | Rode o `build_runner` e commite o `.g.dart` |
+| `WSL ... execvpe(/bin/bash) failed` | `bash` está caindo no WSL. Use o Git Bash — ver seção acima |
+| `flutter run -d opera` → device não encontrado | Não existe device `opera`. Use `-d chrome` com `CHROME_EXECUTABLE`, ou `-d web-server` |
 
 O `wasm dry run failure` merece destaque: ele aparece **junto de um build que
 deu certo**. É o Flutter checando compatibilidade com WebAssembly, que não
