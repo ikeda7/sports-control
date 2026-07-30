@@ -91,14 +91,13 @@ jobs:
           echo "Deploy publicado em: $URL"
 
       - name: Smoke test deployment
-        env:
-          URL: ${{ steps.deploy.outputs.url }}
+        # Só em produção. URLs de preview ficam atrás do Deployment Protection
+        # da Vercel, que responde 302 para uma tela de login SSO — não dá para
+        # validar sem um bypass token, e o 302 não significa deploy quebrado.
+        if: github.ref == 'refs/heads/master'
         run: |
           set -euo pipefail
-          TARGET="$URL"
-          if [ "${{ github.ref }}" = "refs/heads/master" ]; then
-            TARGET="https://sportscontrol.vercel.app"
-          fi
+          TARGET="https://sportscontrol.vercel.app"
           echo "Verificando $TARGET"
           for path in / /main.dart.js /flutter_bootstrap.js /sqlite3.wasm; do
             CODE=$(curl -sS -o /dev/null -w '%{http_code}' --retry 5 --retry-delay 3 \
@@ -110,6 +109,16 @@ jobs:
             fi
           done
           echo "Smoke test OK"
+
+      - name: Preview pronto
+        if: github.ref != 'refs/heads/master'
+        env:
+          URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          echo "Preview publicado: $URL"
+          echo "Se pedir login, é o Deployment Protection da Vercel — entre com"
+          echo "a conta dona do projeto, ou desative em Settings > Deployment"
+          echo "Protection para o time conseguir abrir o preview sem conta."
 
       - name: Summary
         if: always()
