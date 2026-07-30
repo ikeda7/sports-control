@@ -491,6 +491,29 @@ class AppDatabase extends _$AppDatabase {
         .map((rows) => rows.map(_partidaRowToDomain).toList());
   }
 
+  /// Histórico de partidas encerradas de todas as sessões (mais recentes primeiro).
+  Stream<List<Partida>> watchHistoricoGlobal() {
+    return (select(partidasTable)
+          ..where((t) => t.status.equals('encerrada'))
+          ..orderBy([(t) => OrderingTerm.desc(t.iniciadaEm)]))
+        .watch()
+        .map((rows) => rows.map(_partidaRowToDomain).toList());
+  }
+
+  /// Apaga todas as partidas encerradas da sessão atual.
+  Future<void> apagarHistoricoSessao(int sessaoId) {
+    return (delete(partidasTable)
+          ..where((t) =>
+              t.sessaoId.equals(sessaoId) & t.status.equals('encerrada')))
+        .go();
+  }
+
+  /// Apaga todas as partidas encerradas de todas as sessões.
+  Future<void> apagarHistoricoGlobal() {
+    return (delete(partidasTable)..where((t) => t.status.equals('encerrada')))
+        .go();
+  }
+
   Future<int> criarPartida({
     required int sessaoId,
     required List<int> timeAIds,
