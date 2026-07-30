@@ -2,14 +2,24 @@
 #
 # Cria o board de roadmap em GitHub Projects e adiciona as issues abertas.
 #
-# Por que isso é um script e não já está feito: criar Projects pela API exige o
-# escopo `project` no token do gh, que precisa de um fluxo OAuth interativo no
-# navegador. Rode você mesmo:
+# O board já foi criado: https://github.com/users/ikeda7/projects/3
+# Este script serve para, mais tarde, jogar issues novas no board de uma vez.
+#
+# Requer o escopo `project` no token do gh (fluxo OAuth no navegador):
 #
 #   gh auth refresh -s project,read:project
+#
+# NO WINDOWS, use o Git Bash. O `bash` do PATH aponta para o WSL e falha com
+# "execvpe(/bin/bash) failed: No such file or directory" se não houver distro:
+#
+#   & "C:\Program Files\Git\bin\bash.exe" scripts/setup-roadmap.sh
+#
+# No Git Bash ou no Linux/macOS:
+#
 #   bash scripts/setup-roadmap.sh
 #
-# Idempotente: se o projeto com o mesmo título já existir, reaproveita.
+# Idempotente: se o projeto com o mesmo título já existir, reaproveita, e issues
+# que já estão no board não são duplicadas.
 
 set -euo pipefail
 
