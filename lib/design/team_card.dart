@@ -13,6 +13,7 @@ class SCTeamPlayer {
     this.level,
     this.isSetter = false,
     this.borrowed = false,
+    this.isFemale = false,
   });
 
   final String name;
@@ -27,6 +28,11 @@ class SCTeamPlayer {
   /// com avatar acinzentado e badge "EMP", para o organizador não confundir com
   /// a composição base do time.
   final bool borrowed;
+
+  /// Marca jogadora com o ícone rosa. Existe porque o sorteio garante ao menos
+  /// uma mulher por time na quadra — o organizador precisa conferir isso de
+  /// relance ao revisar os times sorteados.
+  final bool isFemale;
 }
 
 /// Card de um time sorteado.
@@ -174,6 +180,14 @@ class SCTeamCard extends StatelessWidget {
                         if (p.isSetter) ...[
                           const SizedBox(width: SCSpace.x3),
                           const SCBadge(label: 'LEV', color: SCColors.setter),
+                        ],
+                        if (p.isFemale) ...[
+                          const SizedBox(width: SCSpace.x3),
+                          Icon(
+                            Icons.female_rounded,
+                            size: 14,
+                            color: SCColors.female.withValues(alpha: 0.8),
+                          ),
                         ],
                         if (p.level != null) ...[
                           const SizedBox(width: SCSpace.x3),
