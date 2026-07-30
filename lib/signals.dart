@@ -90,3 +90,9 @@ final historicoSignal = streamSignal<List<Partida>>(
   () => _comSessao(<Partida>[], (id) => db.watchHistorico(id)),
   initialValue: const [],
 );
+
+/// Histórico global de todas as partidas (independente da sessão atual).
+final historicoGlobalSignal = streamSignal<List<Partida>>(
+  () => db.watchHistoricoGlobal(),
+  initialValue: const [],
+);

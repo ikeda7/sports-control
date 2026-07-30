@@ -1460,58 +1460,7 @@ class SorteioScreen extends StatelessWidget {
       }
     }
 
-    if (context.mounted) {
-      final tempTimes = List.generate(novosTimes.length, (i) => Time(
-         id: i, sessaoId: sessao.id, nome: 'Time ${i+1}', jogadorIds: novosTimes[i].where((j) => !j.isEmprestado).map((j)=>j.id).toList(), ordem: i
-      ));
-      final jogMap = { for (final j in checkins) j.id: j };
 
-      final logs = <String>[];
-      for (int i = 0; i < tempTimes.length; i++) {
-         final time = tempTimes[i];
-         final empBase = _calcularEmprestados(time: time, porTime: porTime, todosTimes: tempTimes, jogMap: jogMap);
-         if (empBase.isNotEmpty) {
-            logs.add('🏐 ${time.nome} está incompleto.\n   ▸ Solução inicial: pegou ${empBase.map((j)=>j.nome).join(', ')}');
-
-            for (int j = 0; j < tempTimes.length; j++) {
-               if (i == j) continue;
-               final op = tempTimes[j];
-               final empOp = _calcularEmprestados(time: time, porTime: porTime, todosTimes: tempTimes, jogMap: jogMap, oponente: op);
-               
-               final saiu = empBase.where((e) => !empOp.any((o) => o.id == e.id)).toList();
-               final entrou = empOp.where((e) => !empBase.any((o) => o.id == e.id)).toList();
-
-               if (saiu.isNotEmpty) {
-                  logs.add('   ⚠️ Quando jogar contra o ${op.nome}:\n       Volta original: ${saiu.map((j)=>j.nome).join(', ')}\n       Sorteado na vaga: ${entrou.map((j)=>j.nome).join(', ')}');
-               }
-            }
-         }
-      }
-
-      if (logs.isNotEmpty) {
-         showDialog(
-           context: context,
-           builder: (ctx) => AlertDialog(
-             backgroundColor: const Color(0xFF0D1F3C),
-             shape: RoundedRectangleBorder(
-               borderRadius: BorderRadius.circular(16),
-               side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
-             ),
-             title: const Text('Resumo de Empréstimos no Sorteio', style: TextStyle(color: Colors.white, fontSize: 18)),
-             content: SingleChildScrollView(
-               child: Text(logs.join('\n\n'), style: const TextStyle(color: Colors.white70, height: 1.4, fontSize: 13)),
-             ),
-             actions: [
-               FilledButton(
-                 onPressed: () => Navigator.of(ctx).pop(),
-                 style: FilledButton.styleFrom(backgroundColor: const Color(0xFFFF6B35)),
-                 child: const Text('Entendi'),
-               ),
-             ],
-           ),
-         );
-      }
-    }
   }
 
   // ── Mensagem de estado vazio ───────────────────────────────────────────────

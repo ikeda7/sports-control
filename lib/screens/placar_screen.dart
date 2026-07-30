@@ -11,8 +11,16 @@ import '../signals.dart';
 const _corA = Color(0xFFFF6B35); // laranja — Time A
 const _corB = Color(0xFF00BCD4); // ciano   — Time B
 
-class PlacarScreen extends StatelessWidget {
+class PlacarScreen extends StatefulWidget {
   const PlacarScreen({super.key});
+
+  @override
+  State<PlacarScreen> createState() => _PlacarScreenState();
+}
+
+class _PlacarScreenState extends State<PlacarScreen> {
+  bool _mostrarGlobal = false;
+  DateTime? _dataFiltro;
 
   @override
   Widget build(BuildContext context) {
@@ -33,11 +41,18 @@ class PlacarScreen extends StatelessWidget {
   Widget _buildConteudo(BuildContext context) {
     final sessao = sessaoAtualSignal.value.value;
     final partida = partidaAtualSignal.value.value;
-    final historico = historicoSignal.value.value ?? [];
+    final historicoLocal = historicoSignal.value.value ?? [];
+    final historicoGlobal = historicoGlobalSignal.value.value ?? [];
     final jogMap = jogadoresMapSignal.value;
 
-    if (sessao == null) {
-      return _buildSemSessao();
+    var historicoAtivo = _mostrarGlobal ? historicoGlobal : historicoLocal;
+    if (_dataFiltro != null) {
+      historicoAtivo = historicoAtivo.where((p) {
+        final dataP = p.iniciadaEm;
+        return dataP.year == _dataFiltro!.year && 
+               dataP.month == _dataFiltro!.month && 
+               dataP.day == _dataFiltro!.day;
+      }).toList();
     }
 
     return Column(
@@ -49,14 +64,15 @@ class PlacarScreen extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
             child: Column(
               children: [
-                if (partida != null)
+                if (sessao == null)
+                  _buildSemSessao()
+                else if (partida != null)
                   _buildPlacarAtivo(context, partida, jogMap)
                 else
                   _buildSemPartida(),
-                if (historico.isNotEmpty) ...[
-                  const SizedBox(height: 24),
-                  _buildHistorico(historico, jogMap),
-                ],
+                  
+                const SizedBox(height: 24),
+                _buildHistorico(historicoAtivo, jogMap),
               ],
             ),
           ),
@@ -160,8 +176,67 @@ class PlacarScreen extends StatelessWidget {
         .whereType<Jogador>()
         .toList();
 
+    final timesOriginais = timesSignal.value.value ?? [];
+    final timeOrigA = timesOriginais.where((t) => t.nome == partida.timeANome).firstOrNull;
+    final timeOrigB = timesOriginais.where((t) => t.nome == partida.timeBNome).firstOrNull;
+
+    final emprestadosA = timeOrigA == null ? <String>[] : partida.timeAIds
+        .where((id) => !timeOrigA.jogadorIds.contains(id))
+        .map((id) => jogMap[id]?.nome ?? '')
+        .where((n) => n.isNotEmpty)
+        .toList();
+
+    final emprestadosB = timeOrigB == null ? <String>[] : partida.timeBIds
+        .where((id) => !timeOrigB.jogadorIds.contains(id))
+        .map((id) => jogMap[id]?.nome ?? '')
+        .where((n) => n.isNotEmpty)
+        .toList();
+
+    Widget? warningWidget;
+    if (emprestadosA.isNotEmpty || emprestadosB.isNotEmpty) {
+      warningWidget = Container(
+        margin: const EdgeInsets.only(bottom: 16, left: 16, right: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFF9800).withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFFF9800).withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.swap_horizontal_circle_outlined, color: Color(0xFFFF9800)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Jogadores Emprestados',
+                    style: TextStyle(color: Color(0xFFFF9800), fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  const SizedBox(height: 4),
+                  if (emprestadosA.isNotEmpty)
+                    Text(
+                      '${partida.timeANome}: ${emprestadosA.join(', ')}',
+                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                    ),
+                  if (emprestadosB.isNotEmpty)
+                    Text(
+                      '${partida.timeBNome}: ${emprestadosB.join(', ')}',
+                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Column(
       children: [
+        if (warningWidget != null) warningWidget,
         // ── PLACAR PRINCIPAL ──────────────────────────────────────────────
         ClipRRect(
           borderRadius: BorderRadius.circular(20),
@@ -383,19 +458,113 @@ class PlacarScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.only(bottom: 12),
-          child: Text('Histórico',
-              style: TextStyle(
-                  color: Colors.white54,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5)),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Histórico',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5)),
+            Row(
+              children: [
+                if (_dataFiltro != null)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: ActionChip(
+                      label: Text('${_dataFiltro!.day.toString().padLeft(2, '0')}/${_dataFiltro!.month.toString().padLeft(2, '0')}'),
+                      onPressed: () => setState(() => _dataFiltro = null),
+                      avatar: const Icon(Icons.close, size: 16),
+                      backgroundColor: const Color(0xFFFF9800).withValues(alpha: 0.2),
+                      side: BorderSide.none,
+                      labelStyle: const TextStyle(color: Color(0xFFFF9800)),
+                    ),
+                  ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.white70),
+                  onPressed: () => _confirmarLimpezaHistorico(context),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.date_range, color: Colors.white70),
+                  onPressed: () async {
+                    final data = await showDatePicker(
+                      context: context,
+                      initialDate: _dataFiltro ?? DateTime.now(),
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime.now(),
+                      builder: (context, child) {
+                        return Theme(
+                          data: Theme.of(context).copyWith(
+                            colorScheme: const ColorScheme.dark(
+                              primary: Color(0xFFFF9800),
+                              onPrimary: Colors.white,
+                              surface: Color(0xFF0D1F3C),
+                              onSurface: Colors.white,
+                            ),
+                          ),
+                          child: child!,
+                        );
+                      },
+                    );
+                    if (data != null) {
+                      setState(() => _dataFiltro = data);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ],
         ),
-        ...historico.asMap().entries.map((e) {
-          final i = historico.length - e.key;
-          return _buildItemHistorico(i, e.value, jogMap);
-        }),
+        const SizedBox(height: 16),
+        Center(
+          child: SegmentedButton<bool>(
+            segments: const [
+              ButtonSegment(
+                value: false,
+                label: Text('Sessão Atual'),
+                icon: Icon(Icons.sports_volleyball),
+              ),
+              ButtonSegment(
+                value: true,
+                label: Text('Global'),
+                icon: Icon(Icons.public),
+              ),
+            ],
+            selected: {_mostrarGlobal},
+            onSelectionChanged: (set) {
+              setState(() => _mostrarGlobal = set.first);
+            },
+            style: ButtonStyle(
+              backgroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return const Color(0xFFFF9800).withValues(alpha: 0.2);
+                }
+                return Colors.transparent;
+              }),
+              foregroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return const Color(0xFFFF9800);
+                }
+                return Colors.white70;
+              }),
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        if (historico.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 32),
+            child: Center(
+              child: Text('Nenhuma partida encontrada.',
+                  style: TextStyle(color: Colors.white54, fontSize: 14)),
+            ),
+          )
+        else
+          ...historico.asMap().entries.map((e) {
+            final i = historico.length - e.key;
+            return _buildItemHistorico(i, e.value, jogMap);
+          }),
       ],
     );
   }
@@ -404,6 +573,13 @@ class PlacarScreen extends StatelessWidget {
       int num, Partida partida, Map<int, Jogador> jogMap) {
     final venceuA = partida.placarA > partida.placarB;
     final venceuB = partida.placarB > partida.placarA;
+
+    final data = partida.iniciadaEm;
+    final dia = data.day.toString().padLeft(2, '0');
+    final mes = data.month.toString().padLeft(2, '0');
+    final hora = data.hour.toString().padLeft(2, '0');
+    final min = data.minute.toString().padLeft(2, '0');
+    final dataFormatada = '$dia/$mes $hora:$min';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -422,7 +598,7 @@ class PlacarScreen extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Text('#$num',
+                Text('#$num • $dataFormatada',
                     style: const TextStyle(
                         color: Colors.white38, fontSize: 12)),
                 const SizedBox(width: 12),
@@ -559,6 +735,55 @@ class PlacarScreen extends StatelessWidget {
               if (ctx.mounted) Navigator.of(ctx).pop();
             },
             child: const Text('Encerrar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Confirmar limpeza do histórico
+  // ---------------------------------------------------------------------------
+  void _confirmarLimpezaHistorico(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF0D1F3C),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+        ),
+        title: const Text('Apagar Histórico',
+            style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'Deseja apagar o histórico?\n\n'
+          'Você pode apagar apenas o histórico da sessão atual, ou o histórico global (todas as sessões). Esta ação não pode ser desfeita.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancelar',
+                style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              final sessao = sessaoAtualSignal.value.value;
+              if (sessao != null) {
+                await db.apagarHistoricoSessao(sessao.id);
+              }
+            },
+            child: const Text('Sessão Atual',
+                style: TextStyle(color: Color(0xFFFF9800))),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              await db.apagarHistoricoGlobal();
+            },
+            child: const Text('Global',
+                style: TextStyle(color: Colors.redAccent)),
           ),
         ],
       ),
