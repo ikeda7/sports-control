@@ -1,0 +1,65 @@
+name: 🐛 Bug
+description: Algo está errado ou quebrado
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Quanto mais específico, menos ida e volta. Se for algo que aconteceu
+        durante o rachão, vale até print ou vídeo do celular.
+
+  - type: textarea
+    id: o-que-aconteceu
+    attributes:
+      label: O que aconteceu
+      placeholder: Ao encerrar a partida, o placar voltou pra zero mas as vitórias não contaram.
+    validations:
+      required: true
+
+  - type: textarea
+    id: passos
+    attributes:
+      label: Como reproduzir
+      placeholder: |
+        1. Fiz check-in de 12 jogadores
+        2. Sorteei 3 times
+        3. Iniciei Time 1 vs Time 2
+        4. Encerrei em 21x18
+    validations:
+      required: true
+
+  - type: textarea
+    id: esperado
+    attributes:
+      label: O que você esperava que acontecesse
+    validations:
+      required: true
+
+  - type: dropdown
+    id: plataforma
+    attributes:
+      label: Onde aconteceu
+      multiple: true
+      options:
+        - Windows (desktop)
+        - Android
+        - Web (sportscontrol.vercel.app)
+        - Web (URL de preview)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: gravidade
+    attributes:
+      label: Travou o rachão?
+      options:
+        - "Não, dá pra contornar"
+        - "Sim, tivemos que anotar no papel"
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Prints, vídeo ou qualquer outra pista
+      placeholder: Arraste imagens aqui.
