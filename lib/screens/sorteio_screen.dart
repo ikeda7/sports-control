@@ -248,7 +248,7 @@ List<Jogador> _calcularEmprestados({
 final _porTimeSignal = signal<int>(6);
 
 // ─── Tela ─────────────────────────────────────────────────────────────────────
-bool _isAlocandoAtrasados = false;
+bool _isAtualizandoTimes = false;
 
 class SorteioScreen extends StatelessWidget {
   const SorteioScreen({super.key});
@@ -291,16 +291,19 @@ class SorteioScreen extends StatelessWidget {
     }
 
     final timesIds = times.expand((t) => t.jogadorIds).toSet();
+    final checkinsIds = checkins.map((j) => j.id).toSet();
+    
     final bancal = checkins.where((j) => !timesIds.contains(j.id)).toList();
+    final fugioes = timesIds.difference(checkinsIds);
 
-    // ─── Alocação Automática de Atrasados ─────────────────────────────────
-    if (times.isNotEmpty && bancal.isNotEmpty && !_isAlocandoAtrasados) {
+    // ─── Atualização Automática de Vagas ─────────────────────────────────
+    if (times.isNotEmpty && (bancal.isNotEmpty || fugioes.isNotEmpty) && !_isAtualizandoTimes) {
       final timesIncompletos = times.where((t) => t.jogadorIds.length < porTime).toList();
-      if (timesIncompletos.isNotEmpty) {
-        _isAlocandoAtrasados = true;
+      if (fugioes.isNotEmpty || timesIncompletos.isNotEmpty) {
+        _isAtualizandoTimes = true;
         Future.microtask(() async {
-          await _alocarJogadoresAtrasados(bancal, porTime, jogMap);
-          _isAlocandoAtrasados = false;
+          await _atualizarTimesAutomaticamente(bancal, fugioes, porTime, jogMap);
+          _isAtualizandoTimes = false;
         });
       }
     }
@@ -338,22 +341,36 @@ class SorteioScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _alocarJogadoresAtrasados(
+  Future<void> _atualizarTimesAutomaticamente(
     List<Jogador> atrasados,
+    Set<int> fugioes,
     int porTime,
     Map<int, Jogador> jogMap,
   ) async {
     try {
       List<Time> timesAtualizados = List.from(timesSignal.value.value ?? []);
 
+      // 1. Remove quem saiu (fugiões)
+      if (fugioes.isNotEmpty) {
+        for (var i = 0; i < timesAtualizados.length; i++) {
+          final t = timesAtualizados[i];
+          final hasFugiao = t.jogadorIds.any((id) => fugioes.contains(id));
+          if (hasFugiao) {
+            final novosIds = t.jogadorIds.where((id) => !fugioes.contains(id)).toList();
+            timesAtualizados[i] = t.copyWith(jogadorIds: novosIds);
+            await db.atualizarTimeJogadores(t.id, novosIds);
+          }
+        }
+      }
+
+      // 2. Aloca quem chegou atrasado (bancal)
       for (final atrasado in atrasados) {
         final timesIncompletos = timesAtualizados.where((t) => t.jogadorIds.length < porTime).toList();
-        
         if (timesIncompletos.isEmpty) break; // Não há mais vagas
 
         Time? timeDestino;
 
-        // 1. Prioridade Levantador: Se o atrasado for levantador, buscar time sem levantador
+        // Prioridade Levantador
         if (atrasado.isLevantador) {
           timeDestino = timesIncompletos.where((t) {
             final temLev = t.jogadorIds.any((id) => jogMap[id]?.isLevantador == true);
@@ -361,7 +378,7 @@ class SorteioScreen extends StatelessWidget {
           }).firstOrNull;
         }
 
-        // 2. Se não for levantador (ou não achou vaga de levantador), vai para o time mais desfalcado
+        // Se não for levantador (ou não achou vaga de levantador), vai para o time mais desfalcado
         if (timeDestino == null) {
           timesIncompletos.sort((a, b) => a.jogadorIds.length.compareTo(b.jogadorIds.length));
           timeDestino = timesIncompletos.first;
@@ -369,7 +386,6 @@ class SorteioScreen extends StatelessWidget {
 
         final novosIds = [...timeDestino.jogadorIds, atrasado.id];
         
-        // Atualiza na memória para a próxima iteração do loop
         final idx = timesAtualizados.indexWhere((t) => t.id == timeDestino!.id);
         if (idx != -1) {
           timesAtualizados[idx] = timeDestino.copyWith(jogadorIds: novosIds);
@@ -378,7 +394,7 @@ class SorteioScreen extends StatelessWidget {
         await db.atualizarTimeJogadores(timeDestino.id, novosIds);
       }
     } finally {
-      _isAlocandoAtrasados = false;
+      _isAtualizandoTimes = false;
     }
   }
 
