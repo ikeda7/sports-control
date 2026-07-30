@@ -236,7 +236,7 @@ class _PlacarScreenState extends State<PlacarScreen> {
 
     return Column(
       children: [
-        if (warningWidget != null) warningWidget,
+        ?warningWidget,
         // ── PLACAR PRINCIPAL ──────────────────────────────────────────────
         ClipRRect(
           borderRadius: BorderRadius.circular(20),
