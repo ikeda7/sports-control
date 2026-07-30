@@ -93,7 +93,7 @@ class _PlacarScreenState extends State<PlacarScreen> {
       padding: const EdgeInsets.only(
         left: SCSpace.x8,
         right: SCSpace.x8,
-        top: SCSpace.x9,
+        top: SCSpace.x10,
       ),
       child: SCScreenHeader(
         title: 'Placar',

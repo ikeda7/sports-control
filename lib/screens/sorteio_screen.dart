@@ -272,9 +272,18 @@ class SorteioScreen extends StatelessWidget {
     final times = timesSignal.value.value ?? [];
     final jogMap = jogadoresMapSignal.value;
 
+    // O cabeçalho fica sempre visível, inclusive nos estados vazios: sem ele a
+    // tela perde o título e o usuário não sabe em que aba está — só via um
+    // ícone solto no meio do nada.
     if (sessao == null) {
-      return _buildMsg(Icons.play_circle_outline_rounded,
-          'Nenhum rachão ativo', 'Inicie o rachão na aba Check-in');
+      return _semConteudo(
+        titulo: 'Sorteio',
+        vazio: _buildMsg(
+          Icons.play_circle_outline_rounded,
+          'Nenhum rachão ativo',
+          'Inicie o rachão na aba Check-in',
+        ),
+      );
     }
 
     // Para areia o porTime é fixo na sessão; para quadra o usuário pode ajustar.
@@ -283,8 +292,14 @@ class SorteioScreen extends StatelessWidget {
         isAreia ? sessao.porTime : _porTimeSignal.value;
 
     if (checkins.isEmpty) {
-      return _buildMsg(Icons.how_to_reg_outlined, 'Ninguém fez check-in',
-          'Confirme a presença dos jogadores na aba Check-in');
+      return _semConteudo(
+        titulo: 'Sorteio',
+        vazio: _buildMsg(
+          Icons.how_to_reg_outlined,
+          'Ninguém fez check-in',
+          'Confirme a presença dos jogadores na aba Check-in',
+        ),
+      );
     }
 
     final timesIds = times.expand((t) => t.jogadorIds).toSet();
@@ -441,7 +456,7 @@ class SorteioScreen extends StatelessWidget {
       padding: const EdgeInsets.only(
         left: SCSpace.x8,
         right: SCSpace.x8,
-        top: SCSpace.x9,
+        top: SCSpace.x10,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1398,5 +1413,39 @@ class SorteioScreen extends StatelessWidget {
   // ── Mensagem de estado vazio ───────────────────────────────────────────────
   Widget _buildMsg(IconData icon, String titulo, String sub) {
     return SCEmptyState(icon: icon, title: titulo, subtitle: sub);
+  }
+
+  /// Tela em estado vazio, mas com o cabeçalho preservado.
+  ///
+  /// O `status` fica de fora por padrão: a mensagem já é dada pelo estado vazio
+  /// no meio da tela, e repetir a mesma frase logo abaixo do título é ruído.
+  Widget _semConteudo({
+    required String titulo,
+    String? status,
+    required Widget vazio,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(
+            left: SCSpace.x8,
+            right: SCSpace.x8,
+            top: SCSpace.x10,
+          ),
+          child: SCScreenHeader(title: titulo, status: status),
+        ),
+        // Expanded + Center dentro do SCEmptyState = conteúdo no meio do espaço
+        // que sobra, em vez de colado embaixo do cabeçalho.
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(
+              bottom: SCLayout.bottomNavClearance,
+            ),
+            child: vazio,
+          ),
+        ),
+      ],
+    );
   }
 }

@@ -28,14 +28,19 @@ class SCEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: SCSpace.x10,
-        vertical: SCSpace.x12,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+    // Center é essencial: dentro de um Expanded ele ocupa a altura disponível e
+    // centraliza; dentro de um scroll ele encolhe para o tamanho do conteúdo.
+    // Sem isso o estado vazio cola no topo e deixa a tela com um vão enorme
+    // embaixo — foi exatamente o que aconteceu na primeira versão.
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: SCSpace.x10,
+          vertical: SCSpace.x12,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
           Icon(
             icon,
             size: iconSize,
@@ -71,7 +76,8 @@ class SCEmptyState extends StatelessWidget {
               onPressed: onAction,
             ),
           ],
-        ],
+          ],
+        ),
       ),
     );
   }

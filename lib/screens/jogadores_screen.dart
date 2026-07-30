@@ -33,7 +33,7 @@ class JogadoresScreen extends StatelessWidget {
               padding: const EdgeInsets.only(
                 left: SCSpace.x8,
                 right: SCSpace.x8,
-                top: SCSpace.x9,
+                top: SCSpace.x10,
               ),
               child: _buildHeader(context),
             ),
