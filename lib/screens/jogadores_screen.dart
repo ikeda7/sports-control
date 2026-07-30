@@ -1,115 +1,127 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
 import '../db.dart';
+import '../design/design.dart';
 import '../models/jogador.dart';
 import '../signals.dart';
 import '../utils/seed.dart';
+
+/// Cor do badge de nível. Iniciante é cinza de propósito: nível é informação
+/// neutra, não mérito.
+Color _corNivel(Nivel n) => switch (n) {
+      Nivel.iniciante => SCColors.grey,
+      Nivel.intermediario => SCColors.blue,
+      Nivel.avancado => SCColors.green,
+    };
 
 class JogadoresScreen extends StatelessWidget {
   const JogadoresScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // O gradiente e a largura de conteúdo vêm do shell (MainScreen). A tela só
+    // entrega o corpo.
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF070B18), Color(0xFF0D1F3C), Color(0xFF1A0A2E)],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(context),
-              Expanded(child: _buildBody(context)),
-            ],
-          ),
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(
+                left: SCSpace.x8,
+                right: SCSpace.x8,
+                top: SCSpace.x9,
+              ),
+              child: _buildHeader(context),
+            ),
+            Expanded(child: _buildBody(context)),
+          ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _mostrarDialogJogador(context, null),
-        backgroundColor: const Color(0xFFFF6B35),
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.person_add),
-        label: const Text('Novo Jogador'),
+      floatingActionButton: Padding(
+        // Sobe o FAB acima da barra de navegação de vidro — antes ele cobria o
+        // último card da lista.
+        padding: const EdgeInsets.only(bottom: SCSpace.x4),
+        child: FloatingActionButton.extended(
+          onPressed: () => _mostrarDialogJogador(context, null),
+          backgroundColor: SCColors.primary,
+          foregroundColor: Colors.white,
+          icon: const Icon(Icons.person_add),
+          label: const Text('Novo Jogador'),
+        ),
       ),
     );
   }
 
   Widget _buildHeader(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 12, 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Jogadores',
-                    style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 1.2)),
-                Watch((ctx) {
-                  final lista = jogadoresSignal.value.value ?? [];
-                  final levs = lista.where((j) => j.isLevantador).length;
-                  return Text(
-                    '${lista.length} jogadores • $levs levantador${levs != 1 ? 'es' : ''}',
-                    style: const TextStyle(color: Colors.white54, fontSize: 14),
-                  );
-                }),
-              ],
-            ),
-          ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: Colors.white54),
-            color: const Color(0xFF0D1F3C),
-            onSelected: (v) async {
-              if (v == 'seed') {
-                await _confirmarSeed(context);
-              } else if (v == 'limpar') {
-                await _confirmarLimparTodos(context);
-              } else if (v == 'importar') {
-                _mostrarDialogImportar(context);
-              }
-            },
-            itemBuilder: (_) => [
-              const PopupMenuItem(
-                value: 'importar',
-                child: Row(children: [
-                  Icon(Icons.upload_file_outlined, color: Colors.white70, size: 18),
-                  SizedBox(width: 10),
-                  Text('Importar lista de nomes', style: TextStyle(color: Colors.white70)),
-                ]),
-              ),
-              const PopupMenuItem(
-                value: 'seed',
-                child: Row(children: [
-                  Icon(Icons.science_outlined, color: Colors.white70, size: 18),
-                  SizedBox(width: 10),
-                  Text('Popular dados de teste', style: TextStyle(color: Colors.white70)),
-                ]),
-              ),
-              PopupMenuItem(
-                value: 'limpar',
-                child: Row(children: [
-                  Icon(Icons.delete_sweep_outlined, color: Colors.red.shade300, size: 18),
-                  const SizedBox(width: 10),
-                  Text('Limpar todos os jogadores', style: TextStyle(color: Colors.red.shade300)),
-                ]),
-              ),
-            ],
-          ),
-        ],
+    return Watch((ctx) {
+      final lista = jogadoresSignal.value.value ?? [];
+      final levs = lista.where((j) => j.isLevantador).length;
+      return SCScreenHeader(
+        title: 'Jogadores',
+        // Números, não adjetivos — e plural batendo com a contagem real.
+        status: '${lista.length} ${lista.length == 1 ? 'jogador' : 'jogadores'}'
+            ' • $levs ${levs == 1 ? 'levantador' : 'levantadores'}',
+        trailing: _buildMenu(context),
+      );
+    });
+  }
+
+  Widget _buildMenu(BuildContext context) {
+    return PopupMenuButton<String>(
+      icon: Icon(Icons.more_vert, color: SCColors.textTertiary),
+      color: SCColors.bgNavy,
+      shape: RoundedRectangleBorder(
+        borderRadius: SCRadius.all(SCRadius.lg),
+        side: BorderSide(color: SCColors.line2),
       ),
+      onSelected: (v) async {
+        if (v == 'seed') {
+          await _confirmarSeed(context);
+        } else if (v == 'limpar') {
+          await _confirmarLimparTodos(context);
+        } else if (v == 'importar') {
+          _mostrarDialogImportar(context);
+        }
+      },
+      itemBuilder: (_) => [
+        _itemMenu(
+          valor: 'importar',
+          icone: Icons.upload_file_outlined,
+          texto: 'Importar lista de nomes',
+        ),
+        _itemMenu(
+          valor: 'seed',
+          icone: Icons.science_outlined,
+          texto: 'Popular dados de teste',
+        ),
+        _itemMenu(
+          valor: 'limpar',
+          icone: Icons.delete_sweep_outlined,
+          texto: 'Limpar todos os jogadores',
+          cor: SCColors.danger,
+        ),
+      ],
+    );
+  }
+
+  PopupMenuItem<String> _itemMenu({
+    required String valor,
+    required IconData icone,
+    required String texto,
+    Color? cor,
+  }) {
+    final c = cor ?? SCColors.textSecondary;
+    return PopupMenuItem(
+      value: valor,
+      child: Row(children: [
+        Icon(icone, color: c, size: 18),
+        const SizedBox(width: SCSpace.x5),
+        Text(texto, style: TextStyle(color: c, fontSize: SCType.fsBody)),
+      ]),
     );
   }
 
@@ -120,7 +132,13 @@ class JogadoresScreen extends StatelessWidget {
       final jogadores = estado.value ?? [];
       if (jogadores.isEmpty) return _buildVazio(context);
       return ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+        padding: const EdgeInsets.only(
+          left: SCSpace.x8,
+          right: SCSpace.x8,
+          top: SCSpace.x4,
+          // Espaço para a nav de vidro e o FAB não cobrirem o último card.
+          bottom: SCLayout.bottomNavClearance + SCSpace.x11,
+        ),
         itemCount: jogadores.length,
         itemBuilder: (ctx, i) => _buildCard(context, jogadores[i]),
       );
@@ -128,154 +146,68 @@ class JogadoresScreen extends StatelessWidget {
   }
 
   Widget _buildCard(BuildContext context, Jogador jogador) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.07),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: jogador.isLevantador
-                    ? const Color(0xFFFFD700).withValues(alpha: 0.5)
-                    : Colors.white.withValues(alpha: 0.12),
-                width: jogador.isLevantador ? 1.5 : 1,
-              ),
-            ),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () => _mostrarDialogJogador(context, jogador),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Row(
-                  children: [
-                    _buildAvatar(jogador),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(jogador.nome,
-                                  style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 16)),
-                              if (jogador.isLevantador) ...[
-                                const SizedBox(width: 6),
-                                _nivelBadge('LEV', const Color(0xFFFFD700)),
-                              ],
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          _buildPapeisRow(jogador),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    _buildTrailing(context, jogador),
-                  ],
+    return SCPlayerRow(
+      name: jogador.nome,
+      genderColor: jogador.genero == Genero.feminino
+          ? SCColors.female
+          : SCColors.male,
+      selectable: true,
+      onTap: () => _mostrarDialogJogador(context, jogador),
+      badges: [
+        // LEV primeiro: é a informação que o organizador procura ao montar time.
+        if (jogador.isLevantador)
+          const SCRowBadge('LEV', color: SCColors.setter),
+        SCRowBadge(jogador.nivel.label, color: _corNivel(jogador.nivel)),
+        for (final p in jogador.papeis)
+          SCRowBadge(p.label, color: SCColors.primary),
+      ],
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Antes o número e a lixeira ficavam empilhados, o que esticava o card
+          // e desperdiçava largura. Lado a lado o card encurta bastante.
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${jogador.partidasJogadas}',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: SCColors.textPrimary,
                 ),
               ),
-            ),
+              Text(
+                jogador.partidasJogadas == 1 ? 'partida' : 'partidas',
+                style: TextStyle(
+                  fontSize: SCType.fsNano,
+                  color: SCColors.textFaint,
+                ),
+              ),
+            ],
           ),
-        ),
+          const SizedBox(width: SCSpace.x3),
+          SCIconActionButton(
+            icon: Icons.delete_outline,
+            color: SCColors.danger,
+            size: SCButtonSize.sm,
+            tinted: false,
+            tooltip: 'Excluir jogador',
+            onPressed: () => _confirmarDelete(context, jogador),
+          ),
+        ],
       ),
-    );
-  }
-
-  Widget _buildAvatar(Jogador jogador) {
-    final cor = jogador.genero == Genero.feminino
-        ? const Color(0xFFE91E8C)
-        : const Color(0xFF2196F3);
-    return Container(
-      width: 46,
-      height: 46,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: cor.withValues(alpha: 0.15),
-        border: Border.all(color: cor, width: 2),
-      ),
-      child: Center(
-        child: Text(jogador.nome[0].toUpperCase(),
-            style: TextStyle(color: cor, fontWeight: FontWeight.bold, fontSize: 18)),
-      ),
-    );
-  }
-
-  Widget _buildPapeisRow(Jogador jogador) {
-    final corNivel = switch (jogador.nivel) {
-      Nivel.iniciante => const Color(0xFF9E9E9E),
-      Nivel.intermediario => const Color(0xFF2196F3),
-      Nivel.avancado => const Color(0xFF4CAF50),
-    };
-    return Wrap(
-      spacing: 6,
-      runSpacing: 4,
-      children: [
-        _nivelBadge(jogador.nivel.label, corNivel),
-        for (final p in jogador.papeis)
-          _nivelBadge(p.label, const Color(0xFFFF6B35)),
-      ],
-    );
-  }
-
-  Widget _nivelBadge(String label, Color cor) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: cor.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: cor.withValues(alpha: 0.4)),
-      ),
-      child: Text(label,
-          style: TextStyle(color: cor, fontSize: 10, fontWeight: FontWeight.bold)),
-    );
-  }
-
-  Widget _buildTrailing(BuildContext context, Jogador jogador) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Text('${jogador.partidasJogadas}',
-            style: const TextStyle(
-                color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-        const Text('partidas', style: TextStyle(color: Colors.white38, fontSize: 10)),
-        const SizedBox(height: 4),
-        GestureDetector(
-          onTap: () => _confirmarDelete(context, jogador),
-          child: Icon(Icons.delete_outline, color: Colors.red.shade300, size: 18),
-        ),
-      ],
     );
   }
 
   Widget _buildVazio(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.sports_volleyball, size: 64, color: Colors.white.withValues(alpha: 0.15)),
-          const SizedBox(height: 16),
-          Text('Nenhum jogador cadastrado',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 16)),
-          const SizedBox(height: 24),
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.white54,
-              side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
-            ),
-            icon: const Icon(Icons.science_outlined, size: 18),
-            label: const Text('Popular dados de teste'),
-            onPressed: () => _confirmarSeed(context),
-          ),
-        ],
-      ),
+    return SCEmptyState(
+      icon: Icons.sports_volleyball,
+      title: 'Nenhum jogador cadastrado',
+      subtitle: 'Cadastre os jogadores do rachão para poder fazer check-in e sortear os times.',
+      actionLabel: 'Popular dados de teste',
+      onAction: () => _confirmarSeed(context),
     );
   }
 
