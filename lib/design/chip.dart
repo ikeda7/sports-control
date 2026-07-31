@@ -28,50 +28,46 @@ class SCChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final radius = SCRadius.all(SCRadius.pill);
 
-    return Material(
-      color: Colors.transparent,
-      borderRadius: radius,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: radius,
-        child: AnimatedContainer(
-          duration: SCFx.durFast,
-          curve: SCFx.ease,
-          padding: const EdgeInsets.symmetric(
-            horizontal: SCSpace.x6,
-            vertical: 7,
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: SCFx.durFast,
+        curve: SCFx.ease,
+        padding: const EdgeInsets.symmetric(
+          horizontal: SCSpace.x6,
+          vertical: 7,
+        ),
+        decoration: BoxDecoration(
+          color: selected
+              ? color.withValues(alpha: 0.20)
+              : Colors.white.withValues(alpha: 0.04),
+          borderRadius: radius,
+          border: Border.all(
+            color: selected ? color : SCColors.line3,
+            width: selected ? 1.5 : 1.0,
           ),
-          decoration: BoxDecoration(
-            color: selected
-                ? color.withValues(alpha: 0.20)
-                : Colors.white.withValues(alpha: 0.04),
-            borderRadius: radius,
-            border: Border.all(
-              color: selected ? color : SCColors.line3,
-              width: selected ? 1.5 : 1.0,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (icon != null) ...[
-                Icon(
-                  icon,
-                  size: 16,
-                  color: selected ? color : SCColors.textDisabled,
-                ),
-                const SizedBox(width: SCSpace.x3),
-              ],
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: SCType.fsBodySm,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
-                  color: selected ? color : SCColors.textDisabled,
-                ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(
+                icon,
+                size: 16,
+                color: selected ? color : SCColors.textDisabled,
               ),
+              const SizedBox(width: SCSpace.x3),
             ],
-          ),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: SCType.fsBodySm,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+                color: selected ? color : SCColors.textDisabled,
+              ),
+            ),
+          ],
         ),
       ),
     );
