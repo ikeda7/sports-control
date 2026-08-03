@@ -317,9 +317,19 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> encerrarSessao(int sessaoId) async {
-    await (update(sessoesTable)..where((t) => t.id.equals(sessaoId))).write(
-      const SessoesTableCompanion(status: Value('encerrada')),
-    );
+    await transaction(() async {
+      await (update(sessoesTable)..where((t) => t.id.equals(sessaoId))).write(
+        const SessoesTableCompanion(
+          status: Value('encerrada'),
+          rascunhoAIds: Value(''),
+          rascunhoBIds: Value(''),
+        ),
+      );
+      await customUpdate(
+        'UPDATE jogadores SET partidas_jogadas = 0',
+        updates: {jogadoresTable},
+      );
+    });
   }
 
   /// Encerra automaticamente sessões ativas criadas em dias anteriores.
@@ -329,11 +339,24 @@ class AppDatabase extends _$AppDatabase {
     final inicioDoDia =
         DateTime(hoje.year, hoje.month, hoje.day).millisecondsSinceEpoch;
 
-    await (update(sessoesTable)
-          ..where((t) =>
-              t.status.equals('ativa') &
-              t.criadaEm.isSmallerThanValue(inicioDoDia)))
-        .write(const SessoesTableCompanion(status: Value('encerrada')));
+    await transaction(() async {
+      final rowsUpdated = await (update(sessoesTable)
+            ..where((t) =>
+                t.status.equals('ativa') &
+                t.criadaEm.isSmallerThanValue(inicioDoDia)))
+          .write(const SessoesTableCompanion(
+            status: Value('encerrada'),
+            rascunhoAIds: Value(''),
+            rascunhoBIds: Value(''),
+          ));
+
+      if (rowsUpdated > 0) {
+        await customUpdate(
+          'UPDATE jogadores SET partidas_jogadas = 0',
+          updates: {jogadoresTable},
+        );
+      }
+    });
   }
 
   // ---------------------------------------------------------------------------

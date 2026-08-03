@@ -1,5 +1,7 @@
 // Todos os signals compartilhados entre telas.
 // Importar db.dart (não main.dart) para evitar dependência circular.
+import 'dart:async';
+
 import 'package:signals_flutter/signals_flutter.dart';
 
 import 'db.dart';
@@ -11,12 +13,39 @@ import 'models/time.dart';
 // ---------------------------------------------------------------------------
 // HELPER: cria stream que depende da sessão ativa
 // ---------------------------------------------------------------------------
-// `asyncExpand` é o equivalente ao `switchMap` do RxJS sem cancelamento.
-// Para sessões (que mudam no máximo 1x/dia), é perfeitamente adequado.
-Stream<T> _comSessao<T>(T padrao, Stream<T> Function(int id) builder) =>
-    db.watchSessaoAtual().asyncExpand(
-      (sessao) => sessao == null ? Stream.value(padrao) : builder(sessao.id),
-    );
+// Implementação customizada de switchMap para garantir que a stream
+// anterior seja cancelada ao trocar de sessão, evitando vazamento de estado.
+Stream<T> _comSessao<T>(T padrao, Stream<T> Function(int id) builder) {
+  late StreamController<T> controller;
+  StreamSubscription<Sessao?>? sessaoSub;
+  StreamSubscription<T>? innerSub;
+
+  void onListen() {
+    sessaoSub = db.watchSessaoAtual().listen((sessao) {
+      innerSub?.cancel();
+      if (sessao == null) {
+        controller.add(padrao);
+      } else {
+        innerSub = builder(sessao.id).listen(
+          controller.add,
+          onError: controller.addError,
+        );
+      }
+    });
+  }
+
+  void onCancel() {
+    innerSub?.cancel();
+    sessaoSub?.cancel();
+  }
+
+  controller = StreamController<T>(
+    onListen: onListen,
+    onCancel: onCancel,
+  );
+
+  return controller.stream;
+}
 
 // ---------------------------------------------------------------------------
 // NAVEGAÇÃO
