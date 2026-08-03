@@ -161,42 +161,13 @@ class JogadoresScreen extends StatelessWidget {
         for (final p in jogador.papeis)
           SCRowBadge(p.label, color: SCColors.primary),
       ],
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Antes o número e a lixeira ficavam empilhados, o que esticava o card
-          // e desperdiçava largura. Lado a lado o card encurta bastante.
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '${jogador.partidasJogadas}',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: SCColors.textPrimary,
-                ),
-              ),
-              Text(
-                jogador.partidasJogadas == 1 ? 'partida' : 'partidas',
-                style: TextStyle(
-                  fontSize: SCType.fsNano,
-                  color: SCColors.textFaint,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: SCSpace.x3),
-          SCIconActionButton(
-            icon: Icons.delete_outline,
-            color: SCColors.danger,
-            size: SCButtonSize.sm,
-            tinted: false,
-            tooltip: 'Excluir jogador',
-            onPressed: () => _confirmarDelete(context, jogador),
-          ),
-        ],
+      trailing: SCIconActionButton(
+        icon: Icons.delete_outline,
+        color: SCColors.danger,
+        size: SCButtonSize.sm,
+        tinted: false,
+        tooltip: 'Excluir jogador',
+        onPressed: () => _confirmarDelete(context, jogador),
       ),
     );
   }
