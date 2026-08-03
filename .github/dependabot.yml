@@ -1,0 +1,49 @@
+version: 2
+
+updates:
+  # ── GitHub Actions ─────────────────────────────────────────────────────────
+  # Motivo concreto: o deploy ficou quebrado de 14/04 a 30/07 porque a action
+  # amondnet/vercel-action@v25 fixava internamente a CLI 25.1.0, e a API da
+  # Vercel passou a exigir >= 47.2.2. Ninguém tinha como saber que a action
+  # estava parada no tempo. O Dependabot abre PR quando isso acontece.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "ci"
+    labels:
+      - ci/deploy
+    groups:
+      # Um PR só com todas as actions, em vez de um por action. Com 4 actions
+      # no repo, PRs separadas seriam mais ruído que sinal.
+      actions:
+        patterns:
+          - "*"
+
+  # ── Dependências Dart/Flutter ──────────────────────────────────────────────
+  # Mensal e agrupado de propósito: `drift` e `signals_flutter` são o núcleo do
+  # app, e atualização de minor nesses dois merece revisão humana, não merge
+  # automático. O agrupamento evita encher o repo de PRs.
+  - package-ecosystem: pub
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore"
+    groups:
+      dart-minor-e-patch:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # Major de drift costuma vir com mudança de schema/codegen. Quando for a
+      # hora, é tarefa planejada com issue própria, não PR automática.
+      - dependency-name: drift
+        update-types:
+          - version-update:semver-major
+      - dependency-name: drift_dev
+        update-types:
+          - version-update:semver-major
