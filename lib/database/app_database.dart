@@ -318,7 +318,11 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> encerrarSessao(int sessaoId) async {
     await (update(sessoesTable)..where((t) => t.id.equals(sessaoId))).write(
-      const SessoesTableCompanion(status: Value('encerrada')),
+      const SessoesTableCompanion(
+        status: Value('encerrada'),
+        rascunhoAIds: Value(''),
+        rascunhoBIds: Value(''),
+      ),
     );
   }
 
