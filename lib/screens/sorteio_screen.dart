@@ -44,29 +44,48 @@ List<List<Jogador>> _sortearTimes(
   List<int> capacidade = List.generate(n, (i) => i < timesCompletosNum ? porTime : resto);
   if (resto == 0) capacidade = List.generate(n, (_) => porTime);
 
+  // 1. Levantadores: menos jogos têm prioridade (Apenas Quadra)
   if (modalidade == Modalidade.quadra) {
-    // 1. Levantadores: menos jogos têm prioridade
     final levs = presentes.where((j) => j.isLevantador).toList()
       ..sort((a, b) => a.partidasJogadas.compareTo(b.partidasJogadas));
     for (var i = 0; i < n && i < levs.length; i++) {
       timesFixos[i].add(levs[i]);
       alocados.add(levs[i].id);
     }
+  }
 
-    // 2. Mulheres: garante ao menos 1 por time (melhores primeiro) se houver espaço
-    final mulheres = presentes
-        .where((j) => !alocados.contains(j.id) && j.genero == Genero.feminino)
-        .toList()
-      ..shuffle(rng)
-      ..sort((a, b) => b.pesoTecnico.compareTo(a.pesoTecnico));
-    for (var i = 0; i < n && mulheres.isNotEmpty; i++) {
-      final jaTem = timesFixos[i].any((j) => j.genero == Genero.feminino);
-      if (!jaTem && timesFixos[i].length < capacidade[i]) {
-        final m = mulheres.removeAt(0);
-        timesFixos[i].add(m);
-        alocados.add(m.id);
+  // 2. Mulheres: Teto e Distribuição Equitativa (Ambas modalidades)
+  final mulheres = presentes
+      .where((j) => !alocados.contains(j.id) && j.genero == Genero.feminino)
+      .toList()
+    ..shuffle(rng)
+    ..sort((a, b) => b.pesoTecnico.compareTo(a.pesoTecnico));
+
+  // O teto cede se a quantidade for muito alta para não deixar ninguém de fora na 1a rodada
+  final int maxMulheresPorTime = max(2, (mulheres.length / n).ceil());
+
+  final slotsMulheres = List.generate(n, (i) => maxMulheresPorTime);
+  final fillOrderMulheres = <int>[];
+  var fwdMulheres = true;
+  while (fillOrderMulheres.length < mulheres.length) {
+    final seq = fwdMulheres
+        ? List.generate(n, (i) => i)
+        : List.generate(n, (i) => n - 1 - i);
+    fwdMulheres = !fwdMulheres;
+    var addedAny = false;
+    for (final ti in seq) {
+      if (slotsMulheres[ti] > 0 && fillOrderMulheres.length < mulheres.length && timesFixos[ti].length < capacidade[ti]) {
+        fillOrderMulheres.add(ti);
+        slotsMulheres[ti]--;
+        addedAny = true;
       }
     }
+    if (!addedAny) break;
+  }
+
+  for (var i = 0; i < mulheres.length && i < fillOrderMulheres.length; i++) {
+    timesFixos[fillOrderMulheres[i]].add(mulheres[i]);
+    alocados.add(mulheres[i].id);
   }
 
   // 3. Restantes → snake-draft respeitando a capacidade fixa
@@ -97,10 +116,10 @@ List<List<Jogador>> _sortearTimes(
 
   for (var i = 0; i < restantes.length && i < fillOrder.length; i++) {
     timesFixos[fillOrder[i]].add(restantes[i]);
+    alocados.add(restantes[i].id);
   }
 
-  // 4. Criação Dinâmica Das Vagas Completas (completa até porTime, não até 6:
-  //    na areia porTime é 2 ou 3)
+  // 4. Criação Dinâmica Das Vagas Completas
   final timesCompletos = <List<Jogador>>[];
   for (int i = 0; i < n; i++) {
     final fixos = timesFixos[i];
@@ -195,6 +214,7 @@ List<Jogador> _calcularEmprestados({
   required List<Time> todosTimes,
   required Map<int, Jogador> jogMap,
   Time? oponente,
+  Set<int>? jaEmprestados,
 }) {
   final faltam = porTime - time.jogadorIds.length;
   if (faltam <= 0) return [];
@@ -207,10 +227,10 @@ List<Jogador> _calcularEmprestados({
   final candidatos = timesLivres
       .expand((t) => t.jogadorIds.map((id) => jogMap[id]))
       .whereType<Jogador>()
+      .where((j) => jaEmprestados == null || !jaEmprestados.contains(j.id))
       .toList();
 
   // Prioriza jogadores com menos partidas jogadas para rodar o banco imaginário de forma justa
-  // Usa um hash baseado nos IDs para ser "aleatório" porém determinístico (evita que a tela pisque a cada frame)
   candidatos.sort((a, b) {
     int cmp = a.partidasJogadas.compareTo(b.partidasJogadas);
     if (cmp == 0) {
@@ -314,7 +334,17 @@ class SorteioScreen extends StatelessWidget {
       if (fugioes.isNotEmpty || timesIncompletos.isNotEmpty) {
         _isAtualizandoTimes = true;
         Future.microtask(() async {
-          await _atualizarTimesAutomaticamente(bancal, fugioes, porTime, jogMap);
+          await _atualizarTimesAutomaticamente(bancal, fugioes, porTime, jogMap, onSwap: (msg) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(msg),
+                  backgroundColor: const Color(0xFF4CAF50),
+                  duration: const Duration(seconds: 4),
+                ),
+              );
+            }
+          });
           _isAtualizandoTimes = false;
         });
       }
@@ -363,8 +393,9 @@ class SorteioScreen extends StatelessWidget {
     List<Jogador> atrasados,
     Set<int> fugioes,
     int porTime,
-    Map<int, Jogador> jogMap,
-  ) async {
+    Map<int, Jogador> jogMap, {
+    void Function(String)? onSwap,
+  }) async {
     try {
       List<Time> timesAtualizados = List.from(timesSignal.value.value ?? []);
 
@@ -384,64 +415,126 @@ class SorteioScreen extends StatelessWidget {
       // 2. Aloca quem chegou atrasado (bancal)
       for (final atrasado in atrasados) {
         var timesIncompletos = timesAtualizados.where((t) => t.jogadorIds.length < porTime).toList();
-        if (timesIncompletos.isEmpty) break; // Não há mais vagas
-
-        Time? timeDestino;
-        bool fezTrocaCompleta = false;
+        
+        bool fezTroca = false;
 
         // Prioridade Levantador
         if (atrasado.isLevantador) {
-          // Tenta primeiro os times incompletos
-          timeDestino = timesIncompletos.where((t) {
-            final temLev = t.jogadorIds.any((id) => jogMap[id]?.isLevantador == true);
-            return !temLev;
-          }).firstOrNull;
+          Time? timeDestino = timesIncompletos.where((t) => !t.jogadorIds.any((id) => jogMap[id]?.isLevantador == true)).firstOrNull;
 
-          // Se todos os incompletos já têm levantador, procura num time completo que não tenha
           if (timeDestino == null) {
             final timesCompletos = timesAtualizados.where((t) => t.jogadorIds.length >= porTime).toList();
-            final timeCompletoSemLev = timesCompletos.where((t) {
-              return !t.jogadorIds.any((id) => jogMap[id]?.isLevantador == true);
-            }).firstOrNull;
+            final timeCompletoSemLev = timesCompletos.where((t) => !t.jogadorIds.any((id) => jogMap[id]?.isLevantador == true)).firstOrNull;
 
             if (timeCompletoSemLev != null) {
-              fezTrocaCompleta = true;
-              
-              // Remove o último jogador do time completo (geralmente o de menor nível / homem)
               final idPraSair = timeCompletoSemLev.jogadorIds.last;
-              
-              // Atualiza o time completo com o novo levantador
+              final nomeSaindo = jogMap[idPraSair]?.nome ?? 'Jogador';
               final novosIdsCompleto = timeCompletoSemLev.jogadorIds.where((id) => id != idPraSair).toList()..add(atrasado.id);
               final idxComp = timesAtualizados.indexWhere((t) => t.id == timeCompletoSemLev.id);
               timesAtualizados[idxComp] = timeCompletoSemLev.copyWith(jogadorIds: novosIdsCompleto);
               await db.atualizarTimeJogadores(timeCompletoSemLev.id, novosIdsCompleto);
+              onSwap?.call('🔄 ${atrasado.nome} (Lev) entrou no lugar de $nomeSaindo no ${timeCompletoSemLev.nome}');
 
-              // Coloca o jogador que sobrou no time incompleto mais desfalcado
-              timesIncompletos.sort((a, b) => a.jogadorIds.length.compareTo(b.jogadorIds.length));
-              final timeDestinoInc = timesIncompletos.first;
-              final novosIdsInc = [...timeDestinoInc.jogadorIds, idPraSair];
-              final idxInc = timesAtualizados.indexWhere((t) => t.id == timeDestinoInc.id);
-              timesAtualizados[idxInc] = timeDestinoInc.copyWith(jogadorIds: novosIdsInc);
-              await db.atualizarTimeJogadores(timeDestinoInc.id, novosIdsInc);
+              if (timesIncompletos.isNotEmpty) {
+                timesIncompletos.sort((a, b) => a.jogadorIds.length.compareTo(b.jogadorIds.length));
+                final timeDestinoInc = timesIncompletos.first;
+                final novosIdsInc = [...timeDestinoInc.jogadorIds, idPraSair];
+                final idxInc = timesAtualizados.indexWhere((t) => t.id == timeDestinoInc.id);
+                timesAtualizados[idxInc] = timeDestinoInc.copyWith(jogadorIds: novosIdsInc);
+                await db.atualizarTimeJogadores(timeDestinoInc.id, novosIdsInc);
+              }
+              fezTroca = true;
             }
+          } else {
+            final novosIds = [...timeDestino.jogadorIds, atrasado.id];
+            final idx = timesAtualizados.indexWhere((t) => t.id == timeDestino.id);
+            timesAtualizados[idx] = timeDestino.copyWith(jogadorIds: novosIds);
+            await db.atualizarTimeJogadores(timeDestino.id, novosIds);
+            fezTroca = true;
           }
         }
 
-        if (fezTrocaCompleta) continue;
+        if (fezTroca) continue;
 
-        // Se não for levantador (ou não achou vaga de levantador), vai para o time mais desfalcado
-        if (timeDestino == null) {
+        // Regra de Mulheres
+        if (atrasado.genero == Genero.feminino) {
           timesIncompletos.sort((a, b) => a.jogadorIds.length.compareTo(b.jogadorIds.length));
-          timeDestino = timesIncompletos.first;
+          Time? timeDestino = timesIncompletos.where((t) {
+            return t.jogadorIds.where((id) => jogMap[id]?.genero == Genero.feminino).length < 2;
+          }).firstOrNull;
+
+          if (timeDestino != null) {
+            final novosIds = [...timeDestino.jogadorIds, atrasado.id];
+            final idx = timesAtualizados.indexWhere((t) => t.id == timeDestino.id);
+            timesAtualizados[idx] = timeDestino.copyWith(jogadorIds: novosIds);
+            await db.atualizarTimeJogadores(timeDestino.id, novosIds);
+            continue;
+          }
+
+          // Troca por um homem num time que tenha menos de 2 mulheres
+          final timesMenos2Mulheres = timesAtualizados.where((t) {
+            return t.jogadorIds.where((id) => jogMap[id]?.genero == Genero.feminino).length < 2;
+          }).toList();
+
+          if (timesMenos2Mulheres.isNotEmpty) {
+            final tDest = timesMenos2Mulheres.first;
+            final homens = tDest.jogadorIds.where((id) => jogMap[id]?.genero != Genero.feminino).toList();
+            if (homens.isNotEmpty) {
+              homens.sort((a, b) {
+                final jA = jogMap[a]!;
+                final jB = jogMap[b]!;
+                if (jA.isLevantador && !jB.isLevantador) return 1;
+                if (!jA.isLevantador && jB.isLevantador) return -1;
+                return jB.partidasJogadas.compareTo(jA.partidasJogadas);
+              });
+              final idPraSair = homens.first;
+              final nomeSaindo = jogMap[idPraSair]?.nome ?? 'Jogador';
+              final novosIds = tDest.jogadorIds.where((id) => id != idPraSair).toList()..add(atrasado.id);
+              final idx = timesAtualizados.indexWhere((t) => t.id == tDest.id);
+              timesAtualizados[idx] = tDest.copyWith(jogadorIds: novosIds);
+              await db.atualizarTimeJogadores(tDest.id, novosIds);
+              onSwap?.call('🔄 Ajuste: $nomeSaindo cedeu vaga p/ ${atrasado.nome} no ${tDest.nome} (Regra Mulheres)');
+              continue;
+            }
+          }
+
+          // Rodízio de mulheres
+          Jogador? mulherParaSair;
+          Time? timeDaMulher;
+          int maxPartidas = -1;
+
+          for (final t in timesAtualizados) {
+            for (final id in t.jogadorIds) {
+              final j = jogMap[id];
+              if (j != null && j.genero == Genero.feminino) {
+                if (j.partidasJogadas > atrasado.partidasJogadas && j.partidasJogadas > maxPartidas) {
+                  maxPartidas = j.partidasJogadas;
+                  mulherParaSair = j;
+                  timeDaMulher = t;
+                }
+              }
+            }
+          }
+
+          if (mulherParaSair != null && timeDaMulher != null) {
+            final novosIds = timeDaMulher.jogadorIds.where((id) => id != mulherParaSair!.id).toList()..add(atrasado.id);
+            final idx = timesAtualizados.indexWhere((t) => t.id == timeDaMulher!.id);
+            timesAtualizados[idx] = timeDaMulher.copyWith(jogadorIds: novosIds);
+            await db.atualizarTimeJogadores(timeDaMulher.id, novosIds);
+            onSwap?.call('🔄 Rodízio: ${atrasado.nome} entrou no lugar de ${mulherParaSair.nome} no ${timeDaMulher.nome}');
+            continue;
+          }
+
+          continue;
         }
 
+        // Se for homem não levantador
+        if (timesIncompletos.isEmpty) break; // Não há mais vagas
+        timesIncompletos.sort((a, b) => a.jogadorIds.length.compareTo(b.jogadorIds.length));
+        final timeDestino = timesIncompletos.first;
         final novosIds = [...timeDestino.jogadorIds, atrasado.id];
-        
-        final idx = timesAtualizados.indexWhere((t) => t.id == timeDestino!.id);
-        if (idx != -1) {
-          timesAtualizados[idx] = timeDestino.copyWith(jogadorIds: novosIds);
-        }
-
+        final idx = timesAtualizados.indexWhere((t) => t.id == timeDestino.id);
+        timesAtualizados[idx] = timeDestino.copyWith(jogadorIds: novosIds);
         await db.atualizarTimeJogadores(timeDestino.id, novosIds);
       }
     } finally {
@@ -520,13 +613,27 @@ class SorteioScreen extends StatelessWidget {
     List<Jogador> bancal,
     int sessaoId,
   ) {
+    final Map<int, List<Jogador>> todosEmprestados = {};
+    final Set<int> jaEmprestados = {};
+    for (final time in times) {
+      final emp = _calcularEmprestados(
+        time: time,
+        porTime: _porTimeSignal.value,
+        todosTimes: times,
+        jogMap: jogMap,
+        jaEmprestados: jaEmprestados,
+      );
+      todosEmprestados[time.id] = emp;
+      jaEmprestados.addAll(emp.map((j) => j.id));
+    }
+
     if (times.length == 2) {
       return LayoutBuilder(builder: (ctx, constraints) {
         final isWide = constraints.maxWidth > 520;
         final cardA = _buildTimeCard(
-            context, times[0], jogMap, bancal, sessaoId);
+            context, times[0], jogMap, bancal, sessaoId, todosEmprestados[times[0].id]!);
         final cardB = _buildTimeCard(
-            context, times[1], jogMap, bancal, sessaoId);
+            context, times[1], jogMap, bancal, sessaoId, todosEmprestados[times[1].id]!);
         if (isWide) {
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -547,7 +654,7 @@ class SorteioScreen extends StatelessWidget {
         for (var i = 0; i < times.length; i++) ...[
           if (i > 0) const SizedBox(height: 12),
           _buildTimeCard(
-              context, times[i], jogMap, bancal, sessaoId),
+              context, times[i], jogMap, bancal, sessaoId, todosEmprestados[times[i].id]!),
         ],
       ],
     );
@@ -559,20 +666,13 @@ class SorteioScreen extends StatelessWidget {
     Map<int, Jogador> jogMap,
     List<Jogador> bancal,
     int sessaoId,
+    List<Jogador> emprestados,
   ) {
     final cor = _corTime(time.ordem);
     final jogadoresOriginais = time.jogadorIds
         .map((id) => jogMap[id])
         .whereType<Jogador>()
         .toList();
-
-    final todosTimes = timesSignal.value.value ?? [];
-    final emprestados = _calcularEmprestados(
-      time: time,
-      porTime: _porTimeSignal.value,
-      todosTimes: todosTimes,
-      jogMap: jogMap,
-    );
 
     final todosJogadores = [...jogadoresOriginais, ...emprestados];
 
@@ -1361,6 +1461,7 @@ class SorteioScreen extends StatelessWidget {
       todosTimes: times,
       jogMap: jogMap,
       oponente: tA,
+      jaEmprestados: emprestadosA.map((j) => j.id).toSet(),
     );
 
     final idsA = [...tA.jogadorIds, ...emprestadosA.map((j) => j.id)];

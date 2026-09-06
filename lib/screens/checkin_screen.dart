@@ -415,6 +415,7 @@ class CheckInScreen extends StatelessWidget {
                 await db.criarSessaoComCheckIns(
                     modalidade: modalidade, porTime: porTime);
                 if (ctx.mounted) Navigator.of(ctx).pop();
+                tabIndexSignal.value = 1;
               },
             ),
           ],
@@ -485,6 +486,7 @@ class CheckInScreen extends StatelessWidget {
               final sessao = sessaoAtualSignal.value.value;
               if (sessao != null) await db.encerrarSessao(sessao.id);
               if (ctx.mounted) Navigator.of(ctx).pop();
+              tabIndexSignal.value = 1;
             },
             child: const Text('Encerrar'),
           ),
