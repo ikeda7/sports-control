@@ -23,7 +23,7 @@ dependencies:
   sqlite3: ^3.3.0
 
   # Signals reativos — idêntico aos Signals do Angular 17+
-  signals_flutter: ^6.3.0
+  signals_flutter: ^7.1.0
 
   # Para encontrar o diretório correto de cada plataforma
   path_provider: ^2.1.5
