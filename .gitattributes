@@ -6,3 +6,7 @@
 *.jpg binary
 *.ico binary
 *.jar binary
+
+# Artefatos gerados — excluídos das estatísticas de linguagem do GitHub.
+# drift_worker.dart.js é Dart compilado pelo Drift, não JavaScript escrito à mão.
+web/drift_worker.dart.js linguist-generated=true
